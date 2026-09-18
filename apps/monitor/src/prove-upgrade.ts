@@ -48,7 +48,7 @@ const detect = async (reason: "poll" | "websocket"): Promise<void> => {
   completed = true;
   console.log(
     JSON.stringify({
-      event: result.event,
+      events: result.events,
       message: "UPGRADE_DETECTED_DETERMINISTICALLY",
       snapshot: {
         ...result.snapshot,

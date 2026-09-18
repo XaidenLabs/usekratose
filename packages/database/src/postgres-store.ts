@@ -4,11 +4,13 @@ import type {
   ProgramStore,
 } from "@usekratose/application";
 import type {
-  ChangeEvent,
-  ChangeEventCandidate,
+  Cluster,
   MonitoredProgram,
   MonitoringStatus,
+  SecurityEvent,
+  SecurityEventCandidate,
   SnapshotCandidate,
+  VerificationStatus,
   VersionSnapshot,
 } from "@usekratose/core";
 import postgres, { type Sql, type TransactionSql } from "postgres";
@@ -17,7 +19,7 @@ type QuerySql = Sql | TransactionSql;
 
 interface ProgramRow {
   address: string;
-  cluster: "devnet" | "mainnet-beta";
+  cluster: Cluster;
   id: string;
   monitoring_status: MonitoringStatus;
   programdata_address: string;
@@ -30,24 +32,30 @@ interface SnapshotRow {
   executable_size: number;
   fingerprint: string;
   id: string;
+  idl_hash: string | null;
+  idl_instructions: readonly string[] | null;
+  metadata_hash: string | null;
   observed_at: Date;
   observed_slot: string;
   program_address: string;
   program_id: string;
+  program_owner: string;
   programdata_address: string;
+  source_reference_hash: string | null;
+  trusted_fingerprint: string | null;
   upgrade_authority: string | null;
+  verification_status: VerificationStatus;
 }
 
-interface EventRow {
+interface SecurityEventRow {
+  current_snapshot_id: string;
   detected_at: Date;
-  event_types: ChangeEvent["eventTypes"];
-  facts: ChangeEvent["facts"];
-  from_snapshot_id: string;
+  evidence: Readonly<Record<string, unknown>>;
   id: string;
+  previous_snapshot_id: string;
   program_id: string;
-  rule_engine_version: "1";
-  severity: ChangeEvent["severity"];
-  to_snapshot_id: string;
+  severity: SecurityEvent["severity"];
+  type: SecurityEvent["type"];
 }
 
 function mapProgram(row: ProgramRow): MonitoredProgram {
@@ -68,27 +76,32 @@ function mapSnapshot(row: SnapshotRow): VersionSnapshot {
     executableSize: row.executable_size,
     fingerprint: row.fingerprint,
     id: row.id,
+    idlHash: row.idl_hash,
+    idlInstructions: row.idl_instructions,
+    metadataHash: row.metadata_hash,
     observedAt: row.observed_at,
     observedSlot: BigInt(row.observed_slot),
     programAddress: row.program_address,
     programDataAddress: row.programdata_address,
     programId: row.program_id,
+    programOwner: row.program_owner,
+    sourceReferenceHash: row.source_reference_hash,
+    trustedFingerprint: row.trusted_fingerprint,
     upgradeAuthority: row.upgrade_authority,
+    verificationStatus: row.verification_status,
   };
 }
 
-function mapEvent(row: EventRow): ChangeEvent {
+function mapSecurityEvent(row: SecurityEventRow): SecurityEvent {
   return {
+    currentSnapshotId: row.current_snapshot_id,
     detectedAt: row.detected_at,
-    eventTypes: row.event_types,
-    facts: row.facts,
-    fromSnapshotId: row.from_snapshot_id,
+    evidence: row.evidence,
     id: row.id,
+    previousSnapshotId: row.previous_snapshot_id,
     programId: row.program_id,
-    ruleEngineVersion: row.rule_engine_version,
     severity: row.severity,
-    toFingerprint: "",
-    toSnapshotId: row.to_snapshot_id,
+    type: row.type,
   };
 }
 
@@ -130,10 +143,31 @@ export class PostgresProgramStore implements ProgramStore {
     const [row] = await this.sql<SnapshotRow[]>`
       SELECT * FROM version_snapshots
       WHERE program_id = ${programId}
-      ORDER BY observed_slot DESC, id DESC
+      ORDER BY observed_slot DESC, created_at DESC, id DESC
       LIMIT 1
     `;
     return row === undefined ? null : mapSnapshot(row);
+  }
+
+  public async getLatestSnapshotPairByAddress(
+    address: string,
+    cluster: Cluster,
+  ): Promise<{
+    readonly current: VersionSnapshot;
+    readonly previous: VersionSnapshot;
+  } | null> {
+    const rows = await this.sql<SnapshotRow[]>`
+      SELECT snapshots.*
+      FROM version_snapshots snapshots
+      JOIN programs ON programs.id = snapshots.program_id
+      WHERE programs.address = ${address} AND programs.cluster = ${cluster}
+      ORDER BY snapshots.observed_slot DESC, snapshots.created_at DESC, snapshots.id DESC
+      LIMIT 2
+    `;
+    const [current, previous] = rows;
+    return current === undefined || previous === undefined
+      ? null
+      : { current: mapSnapshot(current), previous: mapSnapshot(previous) };
   }
 
   public async getProgram(programId: string): Promise<MonitoredProgram | null> {
@@ -144,8 +178,21 @@ export class PostgresProgramStore implements ProgramStore {
     return row === undefined ? null : mapProgram(row);
   }
 
+  public async getSecurityEventsForPair(
+    previousSnapshotId: string,
+    currentSnapshotId: string,
+  ): Promise<readonly SecurityEvent[]> {
+    const rows = await this.sql<SecurityEventRow[]>`
+      SELECT * FROM security_events
+      WHERE previous_snapshot_id = ${previousSnapshotId}
+        AND current_snapshot_id = ${currentSnapshotId}
+      ORDER BY created_at ASC, type ASC
+    `;
+    return rows.map(mapSecurityEvent);
+  }
+
   public async listActivePrograms(
-    cluster: MonitoredProgram["cluster"],
+    cluster: Cluster,
   ): Promise<readonly MonitoredProgram[]> {
     const rows = await this.sql<ProgramRow[]>`
       SELECT id, cluster, address, programdata_address, monitoring_status
@@ -161,71 +208,85 @@ export class PostgresProgramStore implements ProgramStore {
     candidate: SnapshotCandidate,
   ): Promise<VersionSnapshot> {
     const [row] = await this.insertSnapshot(this.sql, programId, candidate);
-    if (row === undefined) {
-      const existing = await this.findSnapshotByFingerprint(
-        this.sql,
-        programId,
-        candidate.fingerprint,
-      );
-      if (existing === null) throw new Error("Failed to persist baseline");
-      return existing;
-    }
-    return mapSnapshot(row);
+    if (row !== undefined) return mapSnapshot(row);
+    const existing = await this.findSnapshotByFingerprint(
+      this.sql,
+      programId,
+      candidate.fingerprint,
+    );
+    if (existing === null) throw new Error("Failed to persist baseline");
+    return existing;
   }
 
   public async persistTransition(
+    programId: string,
     candidate: SnapshotCandidate,
-    event: ChangeEventCandidate,
+    eventCandidates: readonly SecurityEventCandidate[],
   ): Promise<PersistedTransition> {
     return this.sql.begin(async (transaction) => {
+      const firstEvent = eventCandidates[0];
+      if (
+        eventCandidates.some(
+          (event) =>
+            event.currentFingerprint !== candidate.fingerprint ||
+            event.programId !== programId,
+        )
+      ) {
+        throw new Error("Event candidate fingerprint does not match snapshot");
+      }
+
       const [snapshotRow] = await this.insertSnapshot(
         transaction,
-        event.programId,
+        programId,
         candidate,
       );
       const snapshot =
         snapshotRow === undefined
           ? await this.findSnapshotByFingerprint(
               transaction,
-              event.programId,
+              programId,
               candidate.fingerprint,
             )
           : mapSnapshot(snapshotRow);
       if (snapshot === null)
         throw new Error("Failed to persist transition snapshot");
 
-      const [eventRow] = await transaction<EventRow[]>`
-        INSERT INTO change_events (
-          program_id, from_snapshot_id, to_snapshot_id, event_types,
-          severity, facts, rule_engine_version, detected_at
-        ) VALUES (
-          ${event.programId}, ${event.fromSnapshotId}, ${snapshot.id},
-          ${transaction.array([...event.eventTypes])}, ${event.severity},
-          ${JSON.stringify(event.facts)}::jsonb, ${event.ruleEngineVersion},
-          ${event.detectedAt}
-        )
-        ON CONFLICT (from_snapshot_id, to_snapshot_id) DO NOTHING
-        RETURNING *
+      await transaction`
+        UPDATE programs SET
+          programdata_address = ${candidate.programDataAddress},
+          updated_at = now()
+        WHERE id = ${programId}
       `;
-      const inserted = eventRow !== undefined;
-      const persistedEvent =
-        eventRow ??
-        (
-          await transaction<EventRow[]>`
-            SELECT * FROM change_events
-            WHERE from_snapshot_id = ${event.fromSnapshotId}
-              AND to_snapshot_id = ${snapshot.id}
-          `
-        )[0];
-      if (persistedEvent === undefined)
-        throw new Error("Failed to persist change event");
+
+      for (const event of eventCandidates) {
+        await transaction`
+          INSERT INTO security_events (
+            program_id, type, severity, previous_snapshot_id,
+            current_snapshot_id, evidence, rule_engine_version, detected_at
+          ) VALUES (
+            ${event.programId}, ${event.type}, ${event.severity},
+            ${event.previousSnapshotId}, ${snapshot.id},
+            ${JSON.stringify(event.evidence)}::jsonb,
+            ${event.ruleEngineVersion}, ${event.detectedAt}
+          )
+          ON CONFLICT (previous_snapshot_id, current_snapshot_id, type)
+          DO NOTHING
+        `;
+      }
+
+      const rows =
+        firstEvent === undefined
+          ? []
+          : await transaction<SecurityEventRow[]>`
+              SELECT * FROM security_events
+              WHERE previous_snapshot_id = ${firstEvent.previousSnapshotId}
+                AND current_snapshot_id = ${snapshot.id}
+              ORDER BY created_at ASC, type ASC
+            `;
 
       return {
-        event: {
-          ...mapEvent(persistedEvent),
-          toFingerprint: candidate.fingerprint,
-        },
-        inserted,
+        events: rows.map(mapSecurityEvent),
+        inserted: snapshotRow !== undefined,
         snapshot,
       };
     });
@@ -274,15 +335,21 @@ export class PostgresProgramStore implements ProgramStore {
   ): Promise<SnapshotRow[]> {
     return sql<SnapshotRow[]>`
       INSERT INTO version_snapshots (
-        program_id, program_address, programdata_address, deployment_slot,
-        observed_slot, executable_hash, account_data_hash, executable_size,
-        upgrade_authority, fingerprint, observed_at
+        program_id, program_address, programdata_address, program_owner,
+        deployment_slot, observed_slot, executable_hash, account_data_hash,
+        executable_size, upgrade_authority, fingerprint, idl_hash,
+        idl_instructions, metadata_hash, source_reference_hash,
+        verification_status, trusted_fingerprint, observed_at
       ) VALUES (
         ${programId}, ${candidate.programAddress}, ${candidate.programDataAddress},
-        ${candidate.deploymentSlot.toString()}, ${candidate.observedSlot.toString()},
-        ${candidate.executableHash}, ${candidate.accountDataHash},
-        ${candidate.executableSize}, ${candidate.upgradeAuthority},
-        ${candidate.fingerprint}, ${candidate.observedAt}
+        ${candidate.programOwner}, ${candidate.deploymentSlot.toString()},
+        ${candidate.observedSlot.toString()}, ${candidate.executableHash},
+        ${candidate.accountDataHash}, ${candidate.executableSize},
+        ${candidate.upgradeAuthority}, ${candidate.fingerprint}, ${candidate.idlHash},
+        ${candidate.idlInstructions === null ? null : JSON.stringify(candidate.idlInstructions)}::jsonb,
+        ${candidate.metadataHash}, ${candidate.sourceReferenceHash},
+        ${candidate.verificationStatus}, ${candidate.trustedFingerprint},
+        ${candidate.observedAt}
       )
       ON CONFLICT (program_id, fingerprint) DO NOTHING
       RETURNING *

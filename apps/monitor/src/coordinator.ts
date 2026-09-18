@@ -93,8 +93,8 @@ export class MonitorCoordinator {
         }
         if (result.kind === "change") {
           console.info("Deterministic program change detected", {
-            eventId: result.event.id,
-            eventTypes: result.event.eventTypes,
+            eventIds: result.events.map((event) => event.id),
+            eventTypes: result.events.map((event) => event.type),
             programId,
             toFingerprint: result.snapshot.fingerprint,
           });

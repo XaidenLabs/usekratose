@@ -64,6 +64,16 @@ curl -X POST http://localhost:3000/api/v1/organizations/demo/programs \
 
 See [docs/MILESTONE_1_PROOF.md](docs/MILESTONE_1_PROOF.md) for the mandatory real-upgrade acceptance test.
 
+## Milestone 2 security diff
+
+The deterministic rule engine compares stored snapshots and persists one typed security event per matching rule. See [docs/security-rules.md](docs/security-rules.md).
+
+Print the latest stored diff for a program:
+
+```bash
+pnpm security:diff -- PROGRAM_ID
+```
+
 ## Deployment
 
 Deploy only `apps/web` to Vercel. The monitor worker requires a persistent process and must run on a container/worker host with the same organization-owned environment variables and database. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).

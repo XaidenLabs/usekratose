@@ -42,6 +42,7 @@ export function parseProgramAccount(data: Uint8Array): string {
 export function parseProgramDataAccount(
   programAddress: string,
   programDataAddress: string,
+  programOwner: string,
   data: Uint8Array,
 ): ResolvedDeployment {
   if (
@@ -69,6 +70,7 @@ export function parseProgramDataAccount(
     executableBytes: data.slice(PROGRAMDATA_METADATA_SIZE),
     programAddress,
     programDataAddress,
+    programOwner,
     upgradeAuthority: option === 1 ? encodeAddress(data.slice(13, 45)) : null,
   };
 }
@@ -125,6 +127,7 @@ export async function resolveLoaderV3Deployment(
     deployment: parseProgramDataAccount(
       programAddress,
       programDataAddress,
+      programRead.account.owner,
       programDataRead.account.data,
     ),
     observedSlot: programDataRead.contextSlot,

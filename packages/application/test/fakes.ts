@@ -2,11 +2,11 @@ import { randomUUID } from "node:crypto";
 
 import type {
   AccountRead,
-  ChangeEvent,
-  ChangeEventCandidate,
   Cluster,
   MonitoredProgram,
   MonitoringStatus,
+  SecurityEvent,
+  SecurityEventCandidate,
   SnapshotCandidate,
   VersionSnapshot,
 } from "@usekratose/core";
@@ -26,7 +26,7 @@ export class FakeGateway implements SolanaGateway {
 }
 
 export class InMemoryProgramStore implements ProgramStore {
-  public readonly events: ChangeEvent[] = [];
+  public readonly events: SecurityEvent[] = [];
   public readonly monitors = new Set<string>();
   public readonly programs = new Map<string, MonitoredProgram>();
   public readonly snapshots = new Map<string, VersionSnapshot[]>();
@@ -89,34 +89,53 @@ export class InMemoryProgramStore implements ProgramStore {
   }
 
   public async persistTransition(
+    programId: string,
     candidate: SnapshotCandidate,
-    eventCandidate: ChangeEventCandidate,
+    eventCandidates: readonly SecurityEventCandidate[],
   ): Promise<PersistedTransition> {
-    const existing = this.findSnapshot(
-      eventCandidate.programId,
-      candidate.fingerprint,
-    );
+    const existing = this.findSnapshot(programId, candidate.fingerprint);
     if (existing !== undefined) {
-      const event = this.events.find(
-        (item) =>
-          item.fromSnapshotId === eventCandidate.fromSnapshotId &&
-          item.toSnapshotId === existing.id,
+      const events = this.events.filter(
+        (item) => item.currentSnapshotId === existing.id,
       );
-      if (event === undefined) throw new Error("Missing idempotent event");
-      return { event, inserted: false, snapshot: existing };
+      return { events, inserted: false, snapshot: existing };
     }
 
-    const snapshot = await this.persistBaseline(
-      eventCandidate.programId,
-      candidate,
-    );
-    const event: ChangeEvent = {
-      ...eventCandidate,
-      id: randomUUID(),
-      toSnapshotId: snapshot.id,
+    const snapshot = await this.persistBaseline(programId, candidate);
+    const program = this.programs.get(programId);
+    if (program !== undefined) {
+      this.programs.set(programId, {
+        ...program,
+        programDataAddress: candidate.programDataAddress,
+      });
+    }
+    for (const eventCandidate of eventCandidates) {
+      const duplicate = this.events.some(
+        (event) =>
+          event.previousSnapshotId === eventCandidate.previousSnapshotId &&
+          event.currentSnapshotId === snapshot.id &&
+          event.type === eventCandidate.type,
+      );
+      if (!duplicate) {
+        this.events.push({
+          currentSnapshotId: snapshot.id,
+          detectedAt: eventCandidate.detectedAt,
+          evidence: eventCandidate.evidence,
+          id: randomUUID(),
+          previousSnapshotId: eventCandidate.previousSnapshotId,
+          programId: eventCandidate.programId,
+          severity: eventCandidate.severity,
+          type: eventCandidate.type,
+        });
+      }
+    }
+    return {
+      events: this.events.filter(
+        (event) => event.currentSnapshotId === snapshot.id,
+      ),
+      inserted: true,
+      snapshot,
     };
-    this.events.push(event);
-    return { event, inserted: true, snapshot };
   }
 
   public async recordReconciliation(

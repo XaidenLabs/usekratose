@@ -7,6 +7,7 @@
     "build": "tsup",
     "dev": "tsx watch src/main.ts",
     "proof:upgrade": "tsx src/prove-upgrade.ts",
+    "security:diff": "tsx src/print-security-diff.ts",
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit"
   },

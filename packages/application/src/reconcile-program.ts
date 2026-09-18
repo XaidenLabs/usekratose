@@ -1,6 +1,7 @@
 import {
+  createOwnerChangeSnapshot,
+  createSecurityEventCandidates,
   createSnapshotCandidate,
-  diffSnapshots,
   resolveLoaderV3Deployment,
   type ReconciliationReason,
   type ReconciliationResult,
@@ -30,16 +31,25 @@ export class ProgramReconciliationService {
     }
 
     try {
-      const resolved = await resolveLoaderV3Deployment(
-        this.gateway,
-        program.address,
-      );
       const observedAt = this.clock.now();
-      const candidate = createSnapshotCandidate({
-        ...resolved,
-        observedAt,
-      });
       const previous = await this.store.getLatestSnapshot(program.id);
+      const ownerRead = await this.gateway.getAccountInfo(program.address);
+      const ownerChanged =
+        previous !== null &&
+        ownerRead.account !== null &&
+        ownerRead.account.owner !== previous.programOwner;
+      const candidate = ownerChanged
+        ? createOwnerChangeSnapshot({
+            observedAt,
+            observedSlot: ownerRead.contextSlot,
+            previous,
+            programOwner: ownerRead.account?.owner ?? previous.programOwner,
+          })
+        : createSnapshotCandidate({
+            ...(await resolveLoaderV3Deployment(this.gateway, program.address)),
+            observedAt,
+            previous,
+          });
 
       if (previous === null) {
         const snapshot = await this.store.persistBaseline(
@@ -63,10 +73,15 @@ export class ProgramReconciliationService {
         return { fingerprint: candidate.fingerprint, kind: "no-change" };
       }
 
-      const eventCandidate = diffSnapshots(previous, candidate, observedAt);
-      const transition = await this.store.persistTransition(
+      const eventCandidates = createSecurityEventCandidates(
+        previous,
         candidate,
-        eventCandidate,
+        observedAt,
+      );
+      const transition = await this.store.persistTransition(
+        program.id,
+        candidate,
+        eventCandidates,
       );
       await this.store.recordReconciliation(program.id, "healthy", observedAt);
 
@@ -78,7 +93,7 @@ export class ProgramReconciliationService {
       }
 
       return {
-        event: transition.event,
+        events: transition.events,
         kind: "change",
         snapshot: transition.snapshot,
       };

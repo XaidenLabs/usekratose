@@ -5,10 +5,7 @@ export type ProgramId = string;
 export type SnapshotId = string;
 
 export type MonitoringStatus =
-  | "baselining"
-  | "healthy"
-  | "degraded"
-  | "unsupported";
+  "baselining" | "healthy" | "degraded" | "unsupported";
 
 export interface RpcAccount {
   readonly data: Uint8Array;
@@ -28,8 +25,11 @@ export interface ResolvedDeployment {
   readonly executableBytes: Uint8Array;
   readonly programAddress: string;
   readonly programDataAddress: string;
+  readonly programOwner: string;
   readonly upgradeAuthority: string | null;
 }
+
+export type VerificationStatus = "unknown" | "trusted" | "verified" | "stale";
 
 export interface SnapshotCandidate {
   readonly accountDataHash: string;
@@ -37,11 +37,18 @@ export interface SnapshotCandidate {
   readonly executableHash: string;
   readonly executableSize: number;
   readonly fingerprint: string;
+  readonly idlHash: string | null;
+  readonly idlInstructions: readonly string[] | null;
+  readonly metadataHash: string | null;
   readonly observedAt: Date;
   readonly observedSlot: bigint;
   readonly programAddress: string;
   readonly programDataAddress: string;
+  readonly programOwner: string;
+  readonly sourceReferenceHash: string | null;
+  readonly trustedFingerprint: string | null;
   readonly upgradeAuthority: string | null;
+  readonly verificationStatus: VerificationStatus;
 }
 
 export interface VersionSnapshot extends SnapshotCandidate {
@@ -49,42 +56,55 @@ export interface VersionSnapshot extends SnapshotCandidate {
   readonly programId: ProgramId;
 }
 
-export const CHANGE_EVENT_TYPES = [
-  "EXECUTABLE_CHANGED",
-  "AUTHORITY_CHANGED",
-  "BECAME_IMMUTABLE",
-] as const;
+export type SecurityEventType =
+  | "PROGRAM_UPGRADED"
+  | "AUTHORITY_CHANGED"
+  | "OWNER_CHANGED"
+  | "IDL_CHANGED"
+  | "INSTRUCTION_ADDED"
+  | "INSTRUCTION_REMOVED"
+  | "VERIFICATION_STALE";
 
-export type ChangeEventType = (typeof CHANGE_EVENT_TYPES)[number];
-export type Severity = "info" | "high";
+export type Severity = "info" | "low" | "medium" | "high" | "critical";
 
-export interface ChangeFacts {
-  readonly newAccountDataHash: string;
-  readonly newAuthority: string | null;
-  readonly newDeploymentSlot: string;
-  readonly newExecutableHash: string;
-  readonly newExecutableSize: number;
-  readonly oldAccountDataHash: string;
-  readonly oldAuthority: string | null;
-  readonly oldDeploymentSlot: string;
-  readonly oldExecutableHash: string;
-  readonly oldExecutableSize: number;
-}
+export type SecurityEvidence = Readonly<Record<string, unknown>>;
 
-export interface ChangeEventCandidate {
+export interface SecurityEvent {
+  readonly currentSnapshotId: string;
   readonly detectedAt: Date;
-  readonly eventTypes: readonly ChangeEventType[];
-  readonly facts: ChangeFacts;
-  readonly fromSnapshotId: SnapshotId;
-  readonly programId: ProgramId;
-  readonly ruleEngineVersion: "1";
+  readonly evidence: SecurityEvidence;
+  readonly id: string;
+  readonly previousSnapshotId: string;
+  readonly programId: string;
   readonly severity: Severity;
-  readonly toFingerprint: string;
+  readonly type: SecurityEventType;
 }
 
-export interface ChangeEvent extends ChangeEventCandidate {
-  readonly id: string;
-  readonly toSnapshotId: SnapshotId;
+export interface SecurityEventCandidate {
+  readonly currentFingerprint: string;
+  readonly detectedAt: Date;
+  readonly evidence: SecurityEvidence;
+  readonly previousSnapshotId: string;
+  readonly programId: string;
+  readonly ruleEngineVersion: "2";
+  readonly severity: Severity;
+  readonly type: SecurityEventType;
+}
+
+export interface SnapshotDiff {
+  readonly accountDataChanged: boolean;
+  readonly becameImmutable: boolean;
+  readonly deploymentSlotChanged: boolean;
+  readonly executableChanged: boolean;
+  readonly idlChanged: boolean;
+  readonly instructionsAdded: readonly string[];
+  readonly instructionsRemoved: readonly string[];
+  readonly metadataChanged: boolean;
+  readonly ownerChanged: boolean;
+  readonly programDataChanged: boolean;
+  readonly sourceReferenceChanged: boolean;
+  readonly upgradeAuthorityChanged: boolean;
+  readonly verificationBecameStale: boolean;
 }
 
 export interface MonitoredProgram {
@@ -96,16 +116,12 @@ export interface MonitoredProgram {
 }
 
 export type ReconciliationReason =
-  | "baseline"
-  | "poll"
-  | "startup"
-  | "websocket"
-  | "websocket-reconnect";
+  "baseline" | "poll" | "startup" | "websocket" | "websocket-reconnect";
 
 export type ReconciliationResult =
   | { readonly kind: "no-change"; readonly fingerprint: string }
   | {
-      readonly event: ChangeEvent;
+      readonly events: readonly SecurityEvent[];
       readonly kind: "change";
       readonly snapshot: VersionSnapshot;
     };

@@ -13,6 +13,7 @@
     "format:check": "prettier --check .",
     "db:migrate": "pnpm --filter @usekratose/database migrate",
     "proof:upgrade": "pnpm --filter @usekratose/monitor proof:upgrade",
+    "security:diff": "pnpm --filter @usekratose/monitor security:diff",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "pnpm -r --if-present typecheck"

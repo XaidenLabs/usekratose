@@ -1,10 +1,10 @@
 import type {
   AccountRead,
-  ChangeEvent,
-  ChangeEventCandidate,
   Cluster,
   MonitoredProgram,
   MonitoringStatus,
+  SecurityEvent,
+  SecurityEventCandidate,
   SnapshotCandidate,
   VersionSnapshot,
 } from "@usekratose/core";
@@ -25,7 +25,7 @@ export interface CreateProgramInput {
 }
 
 export interface PersistedTransition {
-  readonly event: ChangeEvent;
+  readonly events: readonly SecurityEvent[];
   readonly inserted: boolean;
   readonly snapshot: VersionSnapshot;
 }
@@ -44,8 +44,9 @@ export interface ProgramStore {
     candidate: SnapshotCandidate,
   ): Promise<VersionSnapshot>;
   persistTransition(
+    programId: string,
     candidate: SnapshotCandidate,
-    event: ChangeEventCandidate,
+    events: readonly SecurityEventCandidate[],
   ): Promise<PersistedTransition>;
   recordReconciliation(
     programId: string,

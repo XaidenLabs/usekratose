@@ -1,4 +1,4 @@
-# Milestone 1 architecture
+# Milestone 1-2 architecture
 
 ## Runtime flow
 
@@ -32,17 +32,13 @@ The WebSocket payload is never persisted as proof and never directly creates an 
 
 ## Snapshot identity
 
-The fingerprint hashes a canonical JSON object containing the program and ProgramData addresses, deployment slot from ProgramData metadata, executable hash and size, full account-data hash, and upgrade authority. Observation time and RPC context slot are evidence metadata but are excluded from identity so two providers observing the same finalized state produce the same fingerprint.
+The fingerprint hashes a canonical JSON object containing program owner, ProgramData address, deployment slot, executable hash and size, full account-data hash, upgrade authority, and optional IDL/metadata/source hashes. Observation time, RPC context slot, and verification labels are evidence metadata but are excluded from identity so two providers observing the same state produce the same fingerprint.
 
-## Event rules, version 1
+## Event rules
 
-| Condition                     | Event                | Severity                       |
-| ----------------------------- | -------------------- | ------------------------------ |
-| Executable hash differs       | `EXECUTABLE_CHANGED` | high                           |
-| Upgrade authority differs     | `AUTHORITY_CHANGED`  | high                           |
-| Authority transitions to null | `BECAME_IMMUTABLE`   | info unless combined with high |
+Milestone 1 aggregate events used rule-engine version `1`. Milestone 2 uses independently typed version `2` events so one snapshot transition can produce several explicit security facts.
 
-Every event stores `rule_engine_version = "1"`, both snapshot IDs, and complete before/after facts.
+The complete severity and evidence contract is documented in [security-rules.md](security-rules.md). Every event stores both snapshot IDs and database uniqueness prevents duplicate event types for the same pair.
 
 ## Failure behavior
 

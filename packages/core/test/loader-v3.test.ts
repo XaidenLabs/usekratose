@@ -23,6 +23,7 @@ describe("loader-v3 parsing", () => {
     const deployment = parseProgramDataAccount(
       PROGRAM_ADDRESS,
       PROGRAMDATA_ADDRESS,
+      "BPFLoaderUpgradeab1e11111111111111111111111",
       programDataBytes({
         authority: AUTHORITY_A,
         executable: [0x7f, 0x45, 0x4c, 0x46, 1],
@@ -41,6 +42,7 @@ describe("loader-v3 parsing", () => {
     const deployment = parseProgramDataAccount(
       PROGRAM_ADDRESS,
       PROGRAMDATA_ADDRESS,
+      "BPFLoaderUpgradeab1e11111111111111111111111",
       programDataBytes({
         authority: null,
         executable: [1, 2, 3],

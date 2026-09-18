@@ -59,6 +59,7 @@ export class ProgramIngestionService {
     const candidate = createSnapshotCandidate({
       ...resolved,
       observedAt: this.clock.now(),
+      previous: null,
     });
     const snapshot = await this.store.persistBaseline(program.id, candidate);
     await this.store.recordReconciliation(

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { UPGRADEABLE_LOADER_ADDRESS } from "@usekratose/core";
+import {
+  formatSecurityEventReport,
+  UPGRADEABLE_LOADER_ADDRESS,
+} from "@usekratose/core";
 import { ProgramReconciliationService } from "../src/reconcile-program.js";
 import { FakeGateway, InMemoryProgramStore } from "./fakes.js";
 import {
@@ -69,13 +72,66 @@ describe("ProgramReconciliationService", () => {
 
     expect(first.kind).toBe("change");
     if (first.kind === "change") {
-      expect(first.event.eventTypes).toEqual(["EXECUTABLE_CHANGED"]);
-      expect(first.event.severity).toBe("high");
+      expect(first.events.map((event) => event.type)).toEqual([
+        "PROGRAM_UPGRADED",
+      ]);
+      expect(first.events[0]?.severity).toBe("high");
       expect(first.snapshot.deploymentSlot).toBe(200n);
+      const previous = store.snapshots.get(program.id)?.[0];
+      expect(previous).toBeDefined();
+      if (previous !== undefined) {
+        expect(
+          formatSecurityEventReport({
+            current: first.snapshot,
+            events: first.events,
+            previous,
+          }),
+        ).toContain("Event:\nPROGRAM_UPGRADED");
+      }
     }
     expect(duplicate.kind).toBe("no-change");
     expect(store.snapshots.get(program.id)).toHaveLength(2);
     expect(store.events).toHaveLength(1);
+  });
+
+  it("persists a critical owner-change event without parsing the new loader", async () => {
+    const gateway = new FakeGateway();
+    const store = new InMemoryProgramStore();
+    const program = store.seedProgram({
+      address: PROGRAM_ADDRESS,
+      programDataAddress: PROGRAMDATA_ADDRESS,
+    });
+    const service = new ProgramReconciliationService(gateway, store, clock);
+
+    setDeployment(gateway, {
+      authority: AUTHORITY_A,
+      executable: [1, 2, 3],
+      slot: 100n,
+    });
+    await service.reconcile(program.id, "startup");
+
+    gateway.accounts.set(PROGRAM_ADDRESS, {
+      account: {
+        data: new Uint8Array(),
+        executable: true,
+        lamports: 1n,
+        owner: "11111111111111111111111111111111",
+      },
+      contextSlot: 300n,
+    });
+    const result = await service.reconcile(program.id, "poll");
+
+    expect(result.kind).toBe("change");
+    if (result.kind === "change") {
+      expect(result.snapshot.programOwner).toBe(
+        "11111111111111111111111111111111",
+      );
+      expect(result.events).toHaveLength(1);
+      expect(result.events[0]).toMatchObject({
+        severity: "critical",
+        type: "OWNER_CHANGED",
+      });
+    }
   });
 
   it("records authority changes and immutability independently of bytecode", async () => {
@@ -110,14 +166,17 @@ describe("ProgramReconciliationService", () => {
 
     expect(changedAuthority.kind).toBe("change");
     if (changedAuthority.kind === "change") {
-      expect(changedAuthority.event.eventTypes).toEqual(["AUTHORITY_CHANGED"]);
+      expect(changedAuthority.events.map((event) => event.type)).toEqual([
+        "AUTHORITY_CHANGED",
+      ]);
+      expect(changedAuthority.events[0]?.severity).toBe("high");
     }
     expect(immutable.kind).toBe("change");
     if (immutable.kind === "change") {
-      expect(immutable.event.eventTypes).toEqual([
+      expect(immutable.events.map((event) => event.type)).toEqual([
         "AUTHORITY_CHANGED",
-        "BECAME_IMMUTABLE",
       ]);
+      expect(immutable.events[0]?.severity).toBe("info");
     }
   });
 });

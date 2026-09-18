@@ -55,7 +55,7 @@ The observer must exit after printing `UPGRADE_DETECTED_DETERMINISTICALLY` with:
 - the same Program ID and ProgramData address;
 - a different executable hash and fingerprint;
 - a later deployment slot;
-- `EXECUTABLE_CHANGED` in `eventTypes`;
+- a `PROGRAM_UPGRADED` event with high severity;
 - unchanged authority unless authority was intentionally modified;
 - exactly two snapshots and one transition event after duplicate polling.
 

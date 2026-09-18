@@ -14,6 +14,7 @@ describe("deployment fingerprints", () => {
     const deployment = parseProgramDataAccount(
       PROGRAM_ADDRESS,
       PROGRAMDATA_ADDRESS,
+      "BPFLoaderUpgradeab1e11111111111111111111111",
       programDataBytes({
         authority: AUTHORITY_A,
         executable: [1, 2, 3, 4],
@@ -42,6 +43,7 @@ describe("deployment fingerprints", () => {
         deployment: parseProgramDataAccount(
           PROGRAM_ADDRESS,
           PROGRAMDATA_ADDRESS,
+          "BPFLoaderUpgradeab1e11111111111111111111111",
           programDataBytes({
             authority: AUTHORITY_A,
             executable: [1, 2, 3, lastByte],
