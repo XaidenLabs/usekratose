@@ -1,0 +1,15 @@
+[package]
+name = "usekratose-demo-upgradeable"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+default = []
+v2 = []
+
+[dependencies]
+solana-program = "3"

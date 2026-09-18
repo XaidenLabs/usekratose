@@ -1,0 +1,21 @@
+{
+  "name": "@usekratose/solana",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@usekratose/application": "workspace:*",
+    "@usekratose/core": "workspace:*",
+    "ws": "^8.18.3",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.6",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.9.2"
+  }
+}
