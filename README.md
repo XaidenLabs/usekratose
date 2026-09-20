@@ -1,8 +1,6 @@
 # UseKratose
 
-UseKratose is continuous security verification for Solana programs. Milestone 1 detects loader-v3 deployment and authority changes from deterministic on-chain evidence.
-
-This repository intentionally contains no frontend and no AI. The Next.js app is currently an API-only control plane, ready for the frontend to be added in a later milestone.
+UseKratose is continuous security verification for Solana programs. It detects loader-v3 deployment changes, explains deterministic IDL/source deltas, delivers signed alerts, exposes project-scoped APIs, and presents the same evidence through a Vercel-hosted dashboard and public profiles.
 
 ## Repository layout
 
@@ -15,6 +13,8 @@ packages/
   application/  Ingestion and reconciliation use cases with dependency ports
   solana/       Validated HTTP RPC and WebSocket adapters
   database/     PostgreSQL adapter and migrations
+  alerts/       Signed webhook outbox and retry engine
+  explanations/ Optional evidence-guided AI explanations
 programs/
   demo-upgradeable/  Reproducible v1/v2 Solana upgrade proof program
 docs/
@@ -25,7 +25,7 @@ The `programs/` directory owns on-chain programs. The Next.js application owns f
 
 ## Quick start
 
-Requirements: Node.js 22+, pnpm 10+, and PostgreSQL 15+.
+Requirements: Node.js 22+, pnpm 10+, and Supabase PostgreSQL or local PostgreSQL 15+.
 
 ```bash
 cp .env.example .env
@@ -74,8 +74,22 @@ Print the latest stored diff for a program:
 pnpm security:diff -- PROGRAM_ID
 ```
 
+## Milestone 3 IDL and source intelligence
+
+Canonical Program Metadata IDLs are normalized and stored with each snapshot. Instruction account, signer, mutability, argument, account-type, and error-definition changes are emitted as structured evidence. Missing metadata never disables executable monitoring.
+
+Print the same diff as structured JSON:
+
+```bash
+pnpm security:diff -- PROGRAM_ID --json
+```
+
+See [docs/idl-source-intelligence.md](docs/idl-source-intelligence.md) for retrieval, confidence, and fallback behavior.
+
 ## Deployment
 
 Deploy only `apps/web` to Vercel. The monitor worker requires a persistent process and must run on a container/worker host with the same organization-owned environment variables and database. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
-The source product specification is `UseKratose_Master_Product_Technical_Documentation.pdf`.
+Use Supabase for durable storage and Vercel for `apps/web`. The persistent monitor runs separately because request-scoped Vercel Functions do not own long-lived WebSocket subscriptions. The source product specification is `UseKratose_Master_Product_Technical_Documentation.pdf`.
+
+Architecture, decisions, API, threat model, and demo instructions are maintained in `docs/architecture.md`, `docs/decisions.md`, `docs/api.md`, `docs/threat-model.md`, and `docs/demo-plan.md`.

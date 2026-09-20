@@ -1,6 +1,9 @@
 import type { ProgramStore } from "@usekratose/application";
+import type { AlertDispatcher } from "@usekratose/alerts";
+import type { ExplanationService } from "@usekratose/explanations";
 import {
   ProgramReconciliationService,
+  type ProgramIntelligenceGateway,
   type SolanaGateway,
 } from "@usekratose/application";
 import type {
@@ -11,9 +14,14 @@ import type {
 import { SolanaWebSocketMonitor } from "@usekratose/solana";
 
 export interface MonitorCoordinatorOptions {
+  readonly alertDeliveryIntervalMs?: number;
+  readonly alerts?: Pick<AlertDispatcher, "deliverDue" | "enqueue">;
+  readonly explanationIntervalMs?: number;
+  readonly explanations?: Pick<ExplanationService, "processPending">;
   readonly cluster: Cluster;
   readonly gateway: SolanaGateway;
   readonly portfolioRefreshIntervalMs: number;
+  readonly intelligence: ProgramIntelligenceGateway;
   readonly reconciliationIntervalMs: number;
   readonly reconnectBaseDelayMs: number;
   readonly store: ProgramStore;
@@ -21,6 +29,8 @@ export interface MonitorCoordinatorOptions {
 }
 
 export class MonitorCoordinator {
+  private alertTimer: NodeJS.Timeout | null = null;
+  private explanationTimer: NodeJS.Timeout | null = null;
   private readonly addressToPrograms = new Map<string, Set<string>>();
   private portfolioTimer: NodeJS.Timeout | null = null;
   private reconciliationTimer: NodeJS.Timeout | null = null;
@@ -33,6 +43,8 @@ export class MonitorCoordinator {
     this.reconciliation = new ProgramReconciliationService(
       options.gateway,
       options.store,
+      undefined,
+      options.intelligence,
     );
     this.websocket = new SolanaWebSocketMonitor({
       endpoint: options.websocketEndpoint,
@@ -66,6 +78,22 @@ export class MonitorCoordinator {
       () => this.enqueueAll("poll"),
       this.options.reconciliationIntervalMs,
     );
+    if (this.options.alerts !== undefined) {
+      this.alertTimer = setInterval(() => {
+        void this.options.alerts?.deliverDue().catch((error: unknown) => {
+          console.error("Alert delivery failed", { error });
+        });
+      }, this.options.alertDeliveryIntervalMs ?? 5_000);
+    }
+    if (this.options.explanations !== undefined) {
+      this.explanationTimer = setInterval(() => {
+        void this.options.explanations
+          ?.processPending()
+          .catch((error: unknown) => {
+            console.error("AI explanation generation failed", { error });
+          });
+      }, this.options.explanationIntervalMs ?? 60_000);
+    }
     this.portfolioTimer = setInterval(() => {
       void this.refreshPortfolio().catch((error: unknown) => {
         console.error("Portfolio refresh failed", { error });
@@ -74,11 +102,15 @@ export class MonitorCoordinator {
   }
 
   public stop(): void {
+    if (this.alertTimer !== null) clearInterval(this.alertTimer);
+    if (this.explanationTimer !== null) clearInterval(this.explanationTimer);
     if (this.portfolioTimer !== null) clearInterval(this.portfolioTimer);
     if (this.reconciliationTimer !== null)
       clearInterval(this.reconciliationTimer);
     this.portfolioTimer = null;
     this.reconciliationTimer = null;
+    this.alertTimer = null;
+    this.explanationTimer = null;
     this.websocket.stop();
   }
 
@@ -92,6 +124,13 @@ export class MonitorCoordinator {
           await this.options.store.setMonitoringStatus(programId, "degraded");
         }
         if (result.kind === "change") {
+          if (this.options.alerts !== undefined) {
+            await this.options.alerts.enqueue(result.events);
+            await this.options.alerts.deliverDue();
+          }
+          if (this.options.explanations !== undefined) {
+            await this.options.explanations.processPending();
+          }
           console.info("Deterministic program change detected", {
             eventIds: result.events.map((event) => event.id),
             eventTypes: result.events.map((event) => event.type),

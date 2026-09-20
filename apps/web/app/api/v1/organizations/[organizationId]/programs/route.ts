@@ -1,8 +1,13 @@
 import { ProgramIngestionService } from "@usekratose/application";
 import { UseKratoseError } from "@usekratose/core";
-import { createPostgresStore } from "@usekratose/database";
-import { SolanaRpcClient } from "@usekratose/solana";
+import {
+  ProgramMetadataIntelligenceClient,
+  SolanaRpcClient,
+} from "@usekratose/solana";
 import { z } from "zod";
+
+import { createServerDatabase } from "@/lib/database";
+import { hasControlPlaneAccess } from "@/lib/api-server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -32,8 +37,11 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ organizationId: string }> },
 ): Promise<Response> {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (databaseUrl === undefined) {
+  if (!hasControlPlaneAccess(request)) {
+    return Response.json({ error: { code: "UNAUTHORIZED" } }, { status: 401 });
+  }
+  const database = createServerDatabase();
+  if (database === null) {
     return Response.json(
       {
         error: {
@@ -54,11 +62,13 @@ export async function POST(
   }
 
   const { organizationId } = await context.params;
-  const database = createPostgresStore(databaseUrl);
   try {
+    const rpcUrl = rpcUrlForCluster(parsed.data.cluster);
     const service = new ProgramIngestionService(
-      new SolanaRpcClient(rpcUrlForCluster(parsed.data.cluster)),
+      new SolanaRpcClient(rpcUrl),
       database.store,
+      undefined,
+      new ProgramMetadataIntelligenceClient(rpcUrl),
     );
     const result = await service.ingest({
       ...parsed.data,

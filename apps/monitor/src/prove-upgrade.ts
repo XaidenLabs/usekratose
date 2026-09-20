@@ -3,7 +3,11 @@ import {
   ProgramReconciliationService,
 } from "@usekratose/application";
 import { createPostgresStore } from "@usekratose/database";
-import { SolanaRpcClient, SolanaWebSocketMonitor } from "@usekratose/solana";
+import {
+  ProgramMetadataIntelligenceClient,
+  SolanaRpcClient,
+  SolanaWebSocketMonitor,
+} from "@usekratose/solana";
 
 import { loadConfig } from "./config.js";
 
@@ -20,10 +24,20 @@ if (config.SOLANA_CLUSTER !== "devnet") {
 }
 const database = createPostgresStore(config.DATABASE_URL);
 const gateway = new SolanaRpcClient(config.SOLANA_RPC_HTTP_URL);
-const ingestion = new ProgramIngestionService(gateway, database.store);
+const intelligence = new ProgramMetadataIntelligenceClient(
+  config.SOLANA_RPC_HTTP_URL,
+);
+const ingestion = new ProgramIngestionService(
+  gateway,
+  database.store,
+  undefined,
+  intelligence,
+);
 const reconciliation = new ProgramReconciliationService(
   gateway,
   database.store,
+  undefined,
+  intelligence,
 );
 const baseline = await ingestion.ingest({
   address: programAddress,

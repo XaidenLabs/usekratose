@@ -12,9 +12,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@usekratose/alerts": "workspace:*",
     "@usekratose/application": "workspace:*",
     "@usekratose/core": "workspace:*",
     "@usekratose/database": "workspace:*",
+    "@usekratose/explanations": "workspace:*",
     "@usekratose/solana": "workspace:*",
     "zod": "^4.1.11"
   },

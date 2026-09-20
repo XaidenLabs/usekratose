@@ -174,7 +174,7 @@ describe("ProgramReconciliationService", () => {
     expect(immutable.kind).toBe("change");
     if (immutable.kind === "change") {
       expect(immutable.events.map((event) => event.type)).toEqual([
-        "AUTHORITY_CHANGED",
+        "PROGRAM_BECAME_IMMUTABLE",
       ]);
       expect(immutable.events[0]?.severity).toBe("info");
     }

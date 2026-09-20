@@ -1,4 +1,8 @@
-import { formatSecurityEventReport, type Cluster } from "@usekratose/core";
+import {
+  diffSnapshots,
+  formatProgramDiffReport,
+  type Cluster,
+} from "@usekratose/core";
 import { createPostgresStore } from "@usekratose/database";
 import { z } from "zod";
 
@@ -8,6 +12,7 @@ const environmentSchema = z.object({
 });
 
 const programAddress = process.argv[2];
+const jsonOutput = process.argv.includes("--json");
 if (programAddress === undefined) {
   throw new Error(
     "Usage: pnpm --filter @usekratose/monitor security:diff <PROGRAM_ID>",
@@ -32,11 +37,29 @@ try {
     pair.current.id,
   );
   console.log(
-    formatSecurityEventReport({
-      current: pair.current,
-      events,
-      previous: pair.previous,
-    }),
+    jsonOutput
+      ? JSON.stringify(
+          {
+            currentSnapshotId: pair.current.id,
+            diff: diffSnapshots(pair.previous, pair.current),
+            events,
+            previousSnapshotId: pair.previous.id,
+            programId: pair.current.programAddress,
+            source: {
+              currentRevision: pair.current.sourceRevision,
+              previousRevision: pair.previous.sourceRevision,
+              repositoryUrl: pair.current.sourceRepositoryUrl,
+              verificationStatus: pair.current.sourceVerificationStatus,
+            },
+          },
+          null,
+          2,
+        )
+      : formatProgramDiffReport({
+          current: pair.current,
+          events,
+          previous: pair.previous,
+        }),
   );
 } finally {
   await database.close();

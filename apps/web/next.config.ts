@@ -5,9 +5,11 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   serverExternalPackages: ["postgres"],
   transpilePackages: [
+    "@usekratose/alerts",
     "@usekratose/application",
     "@usekratose/core",
     "@usekratose/database",
+    "@usekratose/explanations",
     "@usekratose/solana",
   ],
   webpack: (config) => {

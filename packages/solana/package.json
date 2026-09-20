@@ -8,6 +8,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@solana-program/program-metadata": "^0.9.3",
+    "@solana/kit": "^8.3.0",
     "@usekratose/application": "workspace:*",
     "@usekratose/core": "workspace:*",
     "ws": "^8.18.3",

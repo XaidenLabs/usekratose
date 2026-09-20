@@ -1,0 +1,25 @@
+{
+  "cluster": "devnet",
+  "programId": "3xePxdAmkJtAQnawuVzsBn2KfaG3pEndPV9CWT6bNTWd",
+  "programDataAddress": "BQ7nb5gahFggtBSQEkpRZX7DvueqtFBkuD2PeYn4kVKa",
+  "upgradeAuthority": "AZ61fp1WgdcJ4m9MHrNwJSMj2R4fRvFAjgwNYiRSPnoA",
+  "v1": {
+    "deploymentSignature": "mr8sukusdQ5sJm8ajLxZ6KhyFqpj8H4vf9FWJTKFQY9opijAjNCpGbtNVf94MYMR5JU99H8H4t6p6WUkd5kG3fU",
+    "executableHash": "sha256:b7e82c03c7901f45853e3ac4a624da968fac5a61fc0f04ae235a23276b97d69f",
+    "fingerprint": "sha256:c685c77175b52a92e6ad3f6b3077ebf4331dd775335d403c9215b78d05d260e0"
+  },
+  "v2": {
+    "deploymentSignature": "5HfauBoZaZA6GK6sB8vLshDE4jPwrRUsBi8ssw7V6g8rAB4osGjnhjcfYJsMssUY8trYRYtwcot1sVAKipibNVSg",
+    "deploymentSlot": "500211760"
+  },
+  "detected": {
+    "eventType": "PROGRAM_UPGRADED",
+    "severity": "high",
+    "authorityChanged": false,
+    "automaticProgramDataExtensionProducedIntermediateSnapshot": true
+  },
+  "limitations": [
+    "The CLI auto-extended ProgramData before writing v2, so this historical run recorded an intermediate account-size transition before the final executable transition.",
+    "A separate WebSocket-disabled devnet transaction was not sent; polling recovery is covered by deterministic reconciliation and database acceptance tests."
+  ]
+}

@@ -3,7 +3,8 @@ import { fileURLToPath } from "node:url";
 
 import postgres from "postgres";
 
-const databaseUrl = process.env.DATABASE_URL;
+const databaseUrl =
+  process.env.SUPABASE_DATABASE_URL ?? process.env.DATABASE_URL;
 if (databaseUrl === undefined) {
   throw new Error("DATABASE_URL is required");
 }

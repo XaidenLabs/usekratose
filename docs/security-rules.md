@@ -8,19 +8,22 @@ One snapshot transition may create several events. Each event has one type, one 
 
 ## Rules
 
-| Condition                                                                                                | Event                 | Severity   | Evidence                                                                                      |
-| -------------------------------------------------------------------------------------------------------- | --------------------- | ---------- | --------------------------------------------------------------------------------------------- |
-| Executable hash changed                                                                                  | `PROGRAM_UPGRADED`    | `high`     | Old/new executable hashes, slots, ProgramData addresses, and change flags                     |
-| ProgramData address changed                                                                              | `PROGRAM_UPGRADED`    | `high`     | Old/new ProgramData addresses and deployment evidence                                         |
-| Deployment slot changed without executable or ProgramData change                                         | `PROGRAM_UPGRADED`    | `info`     | Old/new slots with `executableChanged: false`                                                 |
-| Upgrade authority changed to another address                                                             | `AUTHORITY_CHANGED`   | `high`     | Old/new authority and `becameImmutable: false`                                                |
-| Upgrade authority changed to null                                                                        | `AUTHORITY_CHANGED`   | `info`     | Old authority, null current authority, and `becameImmutable: true`                            |
-| Program account owner changed                                                                            | `OWNER_CHANGED`       | `critical` | Old/new owner addresses                                                                       |
-| IDL hash changed                                                                                         | `IDL_CHANGED`         | `medium`   | Old/new canonical IDL hashes                                                                  |
-| IDL instruction added                                                                                    | `INSTRUCTION_ADDED`   | `medium`   | Sorted added instruction names                                                                |
-| Privileged-looking instruction added                                                                     | `INSTRUCTION_ADDED`   | `high`     | Added names and the names matching the explicit privileged token rule                         |
-| IDL instruction removed                                                                                  | `INSTRUCTION_REMOVED` | `medium`   | Sorted removed instruction names                                                              |
-| A previously trusted fingerprint no longer matches and the current snapshot is not independently trusted | `VERIFICATION_STALE`  | `high`     | Previous trusted fingerprint, current fingerprint, and metadata/source-reference change flags |
+| Condition                                                                                                | Event                      | Severity   | Evidence                                                                                      |
+| -------------------------------------------------------------------------------------------------------- | -------------------------- | ---------- | --------------------------------------------------------------------------------------------- |
+| Executable hash changed                                                                                  | `PROGRAM_UPGRADED`         | `high`     | Old/new executable hashes, slots, ProgramData addresses, and change flags                     |
+| ProgramData address changed                                                                              | `PROGRAM_UPGRADED`         | `high`     | Old/new ProgramData addresses and deployment evidence                                         |
+| Deployment slot changed without executable or ProgramData change                                         | `PROGRAM_UPGRADED`         | `info`     | Old/new slots with `executableChanged: false`                                                 |
+| Upgrade authority changed to another address                                                             | `AUTHORITY_CHANGED`        | `high`     | Old/new authority and `becameImmutable: false`                                                |
+| Upgrade authority changed to null                                                                        | `PROGRAM_BECAME_IMMUTABLE` | `info`     | Old authority, null current authority, and `becameImmutable: true`                            |
+| Program account owner changed                                                                            | `OWNER_CHANGED`            | `critical` | Old/new owner addresses                                                                       |
+| Program executable state changed                                                                         | `PROGRAM_UPGRADED`         | `high`     | Old/new executable booleans and preserved deployment evidence                                 |
+| Normalized IDL hash changed                                                                              | `IDL_CHANGED`              | `medium`   | Old/new hashes plus instruction schemas, account types, and error-definition changes          |
+| IDL instruction added                                                                                    | `INSTRUCTION_ADDED`        | `medium`   | Sorted names plus normalized signer, writable-account, and argument evidence                  |
+| Privileged-looking instruction added                                                                     | `INSTRUCTION_ADDED`        | `high`     | Added definitions and names matching the explicit privileged token rule                       |
+| IDL instruction removed                                                                                  | `INSTRUCTION_REMOVED`      | `medium`   | Sorted removed names and previous normalized definitions                                      |
+| Existing instruction schema changed without signer/writable escalation                                   | `INSTRUCTION_CHANGED`      | `medium`   | Account, optional, argument, signer, and writable deltas                                      |
+| Existing instruction signer changed or an account became writable                                        | `INSTRUCTION_CHANGED`      | `high`     | Exact normalized requirement deltas and escalation flags                                      |
+| A previously trusted fingerprint no longer matches and the current snapshot is not independently trusted | `VERIFICATION_STALE`       | `high`     | Previous trusted fingerprint, current fingerprint, and metadata/source-reference change flags |
 
 ## Privileged-looking instruction rule
 
@@ -33,6 +36,8 @@ This is an explainable prioritization rule, not vulnerability detection. The exa
 ## Optional evidence
 
 IDL instructions are compared only when both snapshots contain an instruction list. This prevents temporary IDL unavailability from being reported as instruction removal. IDL, metadata, and source-reference inputs are canonicalized or hashed before entering the snapshot fingerprint. If fresh enrichment is unavailable during an RPC reconciliation, the previous optional evidence is carried forward rather than erased.
+
+Signer, writable-account, optional-account, and argument changes produce `INSTRUCTION_CHANGED` alongside `IDL_CHANGED`. Signer changes and newly writable accounts are high; other schema changes are medium. Account-type and error-definition changes remain structured evidence on `IDL_CHANGED`.
 
 Metadata and source-reference changes are always represented in `SnapshotDiff`. They generate `VERIFICATION_STALE` when they invalidate a previously trusted state; no unsupported metadata-specific event type is invented.
 

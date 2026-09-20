@@ -6,6 +6,7 @@ import type {
   SnapshotDiff,
   VersionSnapshot,
 } from "./domain.js";
+import { diffNormalizedIdls } from "./idl-intelligence.js";
 
 function sortedDifference(
   left: readonly string[] | null,
@@ -35,7 +36,10 @@ export function diffSnapshots(
       previous.upgradeAuthority !== null && current.upgradeAuthority === null,
     deploymentSlotChanged: previous.deploymentSlot !== current.deploymentSlot,
     executableChanged: previous.executableHash !== current.executableHash,
+    executableStateChanged:
+      previous.programExecutable !== current.programExecutable,
     idlChanged: previous.idlHash !== current.idlHash,
+    idlChanges: diffNormalizedIdls(previous.idl, current.idl),
     instructionsAdded: sortedDifference(
       current.idlInstructions,
       previous.idlInstructions,
@@ -92,6 +96,7 @@ export function createSecurityEventCandidates(
 
   if (
     diff.executableChanged ||
+    diff.executableStateChanged ||
     diff.programDataChanged ||
     diff.deploymentSlotChanged
   ) {
@@ -101,15 +106,22 @@ export function createSecurityEventCandidates(
         current,
         detectedAt,
         "PROGRAM_UPGRADED",
-        diff.executableChanged || diff.programDataChanged ? "high" : "info",
+        diff.executableChanged ||
+          diff.executableStateChanged ||
+          diff.programDataChanged
+          ? "high"
+          : "info",
         {
           currentDeploymentSlot: current.deploymentSlot.toString(),
           currentExecutableHash: current.executableHash,
           currentProgramDataAddress: current.programDataAddress,
           deploymentSlotChanged: diff.deploymentSlotChanged,
           executableChanged: diff.executableChanged,
+          executableStateChanged: diff.executableStateChanged,
+          currentExecutableState: current.programExecutable,
           previousDeploymentSlot: previous.deploymentSlot.toString(),
           previousExecutableHash: previous.executableHash,
+          previousExecutableState: previous.programExecutable,
           previousProgramDataAddress: previous.programDataAddress,
           programDataChanged: diff.programDataChanged,
         },
@@ -123,7 +135,7 @@ export function createSecurityEventCandidates(
         previous,
         current,
         detectedAt,
-        "AUTHORITY_CHANGED",
+        diff.becameImmutable ? "PROGRAM_BECAME_IMMUTABLE" : "AUTHORITY_CHANGED",
         diff.becameImmutable ? "info" : "high",
         {
           becameImmutable: diff.becameImmutable,
@@ -146,6 +158,7 @@ export function createSecurityEventCandidates(
   if (diff.idlChanged) {
     events.push(
       candidate(previous, current, detectedAt, "IDL_CHANGED", "medium", {
+        changes: diff.idlChanges,
         currentIdlHash: current.idlHash,
         previousIdlHash: previous.idlHash,
       }),
@@ -156,6 +169,10 @@ export function createSecurityEventCandidates(
     const privilegedLooking = diff.instructionsAdded.filter((instruction) =>
       PRIVILEGED_INSTRUCTION_PATTERN.test(instruction),
     );
+    const instructionDefinitions =
+      current.idl?.instructions.filter((instruction) =>
+        diff.instructionsAdded.includes(instruction.name),
+      ) ?? [];
     events.push(
       candidate(
         previous,
@@ -164,6 +181,9 @@ export function createSecurityEventCandidates(
         "INSTRUCTION_ADDED",
         privilegedLooking.length > 0 ? "high" : "medium",
         {
+          ...(instructionDefinitions.length === 0
+            ? {}
+            : { instructionDefinitions }),
           instructions: diff.instructionsAdded,
           privilegedLooking,
         },
@@ -172,6 +192,10 @@ export function createSecurityEventCandidates(
   }
 
   if (diff.instructionsRemoved.length > 0) {
+    const instructionDefinitions =
+      previous.idl?.instructions.filter((instruction) =>
+        diff.instructionsRemoved.includes(instruction.name),
+      ) ?? [];
     events.push(
       candidate(
         previous,
@@ -179,7 +203,38 @@ export function createSecurityEventCandidates(
         detectedAt,
         "INSTRUCTION_REMOVED",
         "medium",
-        { instructions: diff.instructionsRemoved },
+        {
+          ...(instructionDefinitions.length === 0
+            ? {}
+            : { instructionDefinitions }),
+          instructions: diff.instructionsRemoved,
+        },
+      ),
+    );
+  }
+
+  if (diff.idlChanges.instructionSchemasChanged.length > 0) {
+    const signerChanged = diff.idlChanges.instructionSchemasChanged.some(
+      (instruction) => instruction.signerChanges.length > 0,
+    );
+    const writablePrivilegeAdded =
+      diff.idlChanges.instructionSchemasChanged.some((instruction) =>
+        instruction.writableChanges.some(
+          (change) => !change.previous && change.current,
+        ),
+      );
+    events.push(
+      candidate(
+        previous,
+        current,
+        detectedAt,
+        "INSTRUCTION_CHANGED",
+        signerChanged || writablePrivilegeAdded ? "high" : "medium",
+        {
+          instructionChanges: diff.idlChanges.instructionSchemasChanged,
+          signerChanged,
+          writablePrivilegeAdded,
+        },
       ),
     );
   }

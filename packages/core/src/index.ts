@@ -4,4 +4,7 @@ export * from "./domain.js";
 export * from "./errors.js";
 export * from "./fingerprint.js";
 export * from "./format-security-event.js";
+export * from "./format-program-diff.js";
+export * from "./idl-intelligence.js";
 export * from "./loader-v3.js";
+export * from "./security-status.js";

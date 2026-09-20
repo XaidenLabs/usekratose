@@ -13,6 +13,7 @@ function snapshot(overrides: Partial<VersionSnapshot> = {}): VersionSnapshot {
     executableSize: 10,
     fingerprint: "sha256:fingerprint-v1",
     id: "snapshot-v1",
+    idl: null,
     idlHash: null,
     idlInstructions: null,
     metadataHash: null,
@@ -20,9 +21,13 @@ function snapshot(overrides: Partial<VersionSnapshot> = {}): VersionSnapshot {
     observedSlot: 101n,
     programAddress: "program-address",
     programDataAddress: "programdata-address",
+    programExecutable: true,
     programId: "program-id",
     programOwner: "loader-v3",
     sourceReferenceHash: null,
+    sourceRepositoryUrl: null,
+    sourceRevision: null,
+    sourceVerificationStatus: "unavailable",
     trustedFingerprint: null,
     upgradeAuthority: "authority-a",
     verificationStatus: "unknown",
@@ -113,6 +118,35 @@ describe("Milestone 2 security event rules", () => {
       severity: "high",
       type: "AUTHORITY_CHANGED",
     });
+  });
+
+  it("emits an info event when a program becomes immutable", () => {
+    const previous = snapshot();
+    const current = asCandidate(
+      snapshot({
+        fingerprint: "sha256:fingerprint-v2",
+        id: "snapshot-v2",
+        upgradeAuthority: null,
+      }),
+    );
+    expect(
+      createSecurityEventCandidates(previous, current, detectedAt),
+    ).toMatchObject([{ severity: "info", type: "PROGRAM_BECAME_IMMUTABLE" }]);
+  });
+
+  it("records an executable-state transition", () => {
+    const previous = snapshot();
+    const current = asCandidate(
+      snapshot({
+        fingerprint: "sha256:fingerprint-v2",
+        id: "snapshot-v2",
+        programExecutable: false,
+      }),
+    );
+    expect(diffSnapshots(previous, current).executableStateChanged).toBe(true);
+    expect(
+      createSecurityEventCandidates(previous, current, detectedAt)[0],
+    ).toMatchObject({ severity: "high", type: "PROGRAM_UPGRADED" });
   });
 
   it("emits upgrade and authority events for a combined change", () => {
@@ -241,6 +275,65 @@ describe("Milestone 2 security event rules", () => {
 
     expect(removed).toMatchObject({ severity: "medium" });
     expect(removed?.evidence).toEqual({ instructions: ["deposit"] });
+  });
+
+  it("emits a high instruction-change event for signer escalation", () => {
+    const previous = snapshot({
+      idl: {
+        accountTypes: [],
+        errors: [],
+        instructions: [
+          {
+            accounts: [
+              {
+                name: "admin",
+                optional: false,
+                signer: false,
+                writable: false,
+              },
+            ],
+            arguments: [],
+            name: "configure",
+          },
+        ],
+      },
+      idlHash: "sha256:idl-v1",
+      idlInstructions: ["configure"],
+    });
+    const current = asCandidate(
+      snapshot({
+        fingerprint: "sha256:fingerprint-v2",
+        id: "snapshot-v2",
+        idl: {
+          accountTypes: [],
+          errors: [],
+          instructions: [
+            {
+              accounts: [
+                {
+                  name: "admin",
+                  optional: false,
+                  signer: true,
+                  writable: false,
+                },
+              ],
+              arguments: [],
+              name: "configure",
+            },
+          ],
+        },
+        idlHash: "sha256:idl-v2",
+        idlInstructions: ["configure"],
+      }),
+    );
+    expect(
+      createSecurityEventCandidates(previous, current, detectedAt),
+    ).toContainEqual(
+      expect.objectContaining({
+        severity: "high",
+        type: "INSTRUCTION_CHANGED",
+      }),
+    );
   });
 
   it("marks a previous trusted fingerprint stale", () => {

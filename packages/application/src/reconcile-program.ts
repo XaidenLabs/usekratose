@@ -1,4 +1,5 @@
 import {
+  createExecutableStateChangeSnapshot,
   createOwnerChangeSnapshot,
   createSecurityEventCandidates,
   createSnapshotCandidate,
@@ -10,6 +11,7 @@ import {
 import {
   systemClock,
   type Clock,
+  type ProgramIntelligenceGateway,
   type ProgramStore,
   type SolanaGateway,
 } from "./ports.js";
@@ -19,6 +21,7 @@ export class ProgramReconciliationService {
     private readonly gateway: SolanaGateway,
     private readonly store: ProgramStore,
     private readonly clock: Clock = systemClock,
+    private readonly intelligence?: ProgramIntelligenceGateway,
   ) {}
 
   public async reconcile(
@@ -38,6 +41,11 @@ export class ProgramReconciliationService {
         previous !== null &&
         ownerRead.account !== null &&
         ownerRead.account.owner !== previous.programOwner;
+      const executableStateChanged =
+        previous !== null &&
+        ownerRead.account !== null &&
+        ownerRead.account.executable !== previous.programExecutable;
+      const enrichment = await this.intelligence?.retrieve(program.address);
       const candidate = ownerChanged
         ? createOwnerChangeSnapshot({
             observedAt,
@@ -45,11 +53,23 @@ export class ProgramReconciliationService {
             previous,
             programOwner: ownerRead.account?.owner ?? previous.programOwner,
           })
-        : createSnapshotCandidate({
-            ...(await resolveLoaderV3Deployment(this.gateway, program.address)),
-            observedAt,
-            previous,
-          });
+        : executableStateChanged
+          ? createExecutableStateChangeSnapshot({
+              observedAt,
+              observedSlot: ownerRead.contextSlot,
+              previous,
+              programExecutable:
+                ownerRead.account?.executable ?? previous.programExecutable,
+            })
+          : createSnapshotCandidate({
+              ...(await resolveLoaderV3Deployment(
+                this.gateway,
+                program.address,
+              )),
+              ...(enrichment === undefined ? {} : { enrichment }),
+              observedAt,
+              previous,
+            });
 
       if (previous === null) {
         const snapshot = await this.store.persistBaseline(

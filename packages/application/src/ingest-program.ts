@@ -10,6 +10,7 @@ import {
 import {
   systemClock,
   type Clock,
+  type ProgramIntelligenceGateway,
   type ProgramStore,
   type SolanaGateway,
 } from "./ports.js";
@@ -25,6 +26,7 @@ export class ProgramIngestionService {
     private readonly gateway: SolanaGateway,
     private readonly store: ProgramStore,
     private readonly clock: Clock = systemClock,
+    private readonly intelligence?: ProgramIntelligenceGateway,
   ) {}
 
   public async ingest(input: {
@@ -56,8 +58,10 @@ export class ProgramIngestionService {
       return { createdBaseline: false, program, snapshot: existing };
     }
 
+    const enrichment = await this.intelligence?.retrieve(input.address);
     const candidate = createSnapshotCandidate({
       ...resolved,
+      ...(enrichment === undefined ? {} : { enrichment }),
       observedAt: this.clock.now(),
       previous: null,
     });

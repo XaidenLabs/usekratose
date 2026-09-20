@@ -9,8 +9,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@usekratose/alerts": "workspace:*",
     "@usekratose/application": "workspace:*",
     "@usekratose/core": "workspace:*",
+    "@usekratose/explanations": "workspace:*",
     "postgres": "^3.4.7"
   },
   "devDependencies": {
