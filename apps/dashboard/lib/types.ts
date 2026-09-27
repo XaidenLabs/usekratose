@@ -1,4 +1,27 @@
-import type { ProgramSecurityAnalysis } from "@usekratose/explanations";
+export interface ProgramSecurityAnalysis {
+  readonly caveat: string;
+  readonly corrections: readonly {
+    readonly correction: string;
+    readonly fixes: readonly {
+      readonly action: string;
+      readonly rationale: string;
+    }[];
+    readonly id: string;
+    readonly patches: readonly {
+      readonly after: string;
+      readonly before: string;
+      readonly path: string;
+      readonly rationale: string;
+    }[];
+    readonly reason: string;
+    readonly relatedEventIds: readonly string[];
+    readonly relatedSnapshotIds: readonly string[];
+    readonly severity: "info" | "low" | "medium" | "high" | "critical";
+    readonly title: string;
+  }[];
+  readonly reviewPriorities: readonly string[];
+  readonly summary: string;
+}
 
 export interface DashboardProfile {
   readonly avatarUrl: string | null;

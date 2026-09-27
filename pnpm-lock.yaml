@@ -35,9 +35,6 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.57.4
         version: 2.116.0
-      '@usekratose/explanations':
-        specifier: workspace:*
-        version: link:../../packages/explanations
       lucide-react:
         specifier: ^0.468.0
         version: 0.468.0(react@19.3.0)
