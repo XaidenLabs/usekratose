@@ -1,0 +1,38 @@
+[Unit]
+Description=UseKratose Solana Continuous Security Monitor
+After=network-online.target ollama.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=usekratose
+Group=usekratose
+WorkingDirectory=/opt/usekratose-monitor/current
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/usekratose-monitor/monitor.env
+ExecStart=/opt/usekratose-monitor/runtime/node-current/bin/node /opt/usekratose-monitor/current/dist/main.js
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGTERM
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryHigh=512M
+MemoryMax=768M
+CPUQuota=60%
+TasksMax=128
+ReadWritePaths=/var/lib/usekratose-monitor
+
+[Install]
+WantedBy=multi-user.target

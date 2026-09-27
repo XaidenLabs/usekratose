@@ -1,32 +1,19 @@
 import { ProgramIngestionService } from "@usekratose/application";
 import { UseKratoseError } from "@usekratose/core";
-import {
-  ProgramMetadataIntelligenceClient,
-  SolanaRpcClient,
-} from "@usekratose/solana";
+import { ProgramMetadataIntelligenceClient } from "@usekratose/solana";
 import { z } from "zod";
 
 import { withApiAuth } from "@/lib/api-server";
 import { serializeSnapshot } from "@/lib/serialize";
+import { rpcUrlForCluster, solanaGatewayForCluster } from "@/lib/solana-rpc";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const bodySchema = z.object({
   address: z.string().min(32).max(44),
-  network: z.enum(["devnet", "mainnet-beta"]).default("devnet"),
+  network: z.enum(["devnet", "mainnet-beta"]),
 });
-
-function rpcUrlForCluster(cluster: "devnet" | "mainnet-beta"): string {
-  if (cluster === "devnet") {
-    return (
-      process.env.SOLANA_DEVNET_RPC_HTTP_URL ?? "https://api.devnet.solana.com"
-    );
-  }
-  const endpoint = process.env.SOLANA_MAINNET_RPC_HTTP_URL;
-  if (endpoint === undefined) throw new Error("Mainnet RPC is not configured");
-  return endpoint;
-}
 
 export async function GET(request: Request): Promise<Response> {
   return withApiAuth(request, async ({ key, store }) => {
@@ -47,7 +34,7 @@ export async function POST(request: Request): Promise<Response> {
     try {
       const rpcUrl = rpcUrlForCluster(parsed.data.network);
       const service = new ProgramIngestionService(
-        new SolanaRpcClient(rpcUrl),
+        solanaGatewayForCluster(parsed.data.network),
         store,
         undefined,
         new ProgramMetadataIntelligenceClient(rpcUrl),

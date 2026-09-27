@@ -1,0 +1,19 @@
+skip_local_validator = true
+
+[toolchain]
+anchor_version = "1.2.0"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.devnet]
+usekratose_anchor_fixture = "EfJhXeDqu4YS6fZRj9Z1vCpzJwhJsjZ7qRdyFdSMmJHT"
+
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "cargo test"
+

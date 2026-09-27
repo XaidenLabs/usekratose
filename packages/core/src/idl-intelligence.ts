@@ -166,7 +166,10 @@ export function normalizeIdl(idl: unknown): NormalizedIdl {
 }
 
 function jsonEqual(left: unknown, right: unknown): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
+  return (
+    JSON.stringify(canonicalizeJson(left)) ===
+    JSON.stringify(canonicalizeJson(right))
+  );
 }
 
 function booleanChanges(

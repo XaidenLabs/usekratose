@@ -1,0 +1,28 @@
+[workspace]
+members = [
+  "programs/access-guard",
+  "programs/counter",
+  "programs/emergency-pause",
+  "programs/heartbeat",
+  "programs/metadata-registry",
+  "programs/oracle-gate",
+  "programs/proposal-vote",
+  "programs/token-policy",
+  "programs/treasury-guard",
+  "programs/vault-guard",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+publish = false
+version = "0.1.0"
+
+[workspace.dependencies]
+solana-program = "=2.2.1"
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+overflow-checks = true
+

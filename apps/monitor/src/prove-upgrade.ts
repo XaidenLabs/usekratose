@@ -11,12 +11,15 @@ import {
 
 import { loadConfig } from "./config.js";
 
-const programAddress = process.argv[2];
+const programAddress = process.argv
+  .slice(2)
+  .find((argument) => argument !== "--" && !argument.startsWith("--"));
 if (programAddress === undefined) {
   throw new Error(
     "Usage: pnpm --filter @usekratose/monitor proof:upgrade <PROGRAM_ID>",
   );
 }
+const pollingOnly = process.argv.includes("--polling-only");
 
 const config = loadConfig();
 if (config.SOLANA_CLUSTER !== "devnet") {
@@ -47,7 +50,10 @@ const baseline = await ingestion.ingest({
 
 console.log(
   JSON.stringify({
-    message: "Baseline ready. Upgrade this exact Program ID now.",
+    detectionMode: pollingOnly ? "polling-only" : "websocket-and-polling",
+    message: pollingOnly
+      ? "Baseline ready with WebSocket monitoring disabled. Upgrade this exact Program ID now."
+      : "Baseline ready. Upgrade this exact Program ID now.",
     programDataAddress: baseline.program.programDataAddress,
     baselineFingerprint: baseline.snapshot.fingerprint,
     executableHash: baseline.snapshot.executableHash,
@@ -55,6 +61,8 @@ console.log(
 );
 
 let completed = false;
+let pollTimer: NodeJS.Timeout | null = null;
+let monitor: SolanaWebSocketMonitor | null = null;
 const detect = async (reason: "poll" | "websocket"): Promise<void> => {
   if (completed) return;
   const result = await reconciliation.reconcile(baseline.program.id, reason);
@@ -63,7 +71,10 @@ const detect = async (reason: "poll" | "websocket"): Promise<void> => {
   console.log(
     JSON.stringify({
       events: result.events,
-      message: "UPGRADE_DETECTED_DETERMINISTICALLY",
+      message: pollingOnly
+        ? "UPGRADE_RECOVERED_BY_POLLING_DETERMINISTICALLY"
+        : "UPGRADE_DETECTED_DETERMINISTICALLY",
+      reason,
       snapshot: {
         ...result.snapshot,
         deploymentSlot: result.snapshot.deploymentSlot.toString(),
@@ -71,17 +82,28 @@ const detect = async (reason: "poll" | "websocket"): Promise<void> => {
       },
     }),
   );
-  monitor.stop();
-  clearInterval(pollTimer);
+  monitor?.stop();
+  if (pollTimer !== null) clearInterval(pollTimer);
   await database.close();
 };
 
-const monitor = new SolanaWebSocketMonitor({
-  endpoint: config.SOLANA_RPC_WS_URL,
-  onAccountChange: () => void detect("websocket"),
-  onHealthChange: ({ state }) => console.info("WebSocket", state),
-  reconnectBaseDelayMs: config.WS_RECONNECT_BASE_DELAY_MS,
-});
-monitor.watch(baseline.program.programDataAddress);
-monitor.start();
-const pollTimer = setInterval(() => void detect("poll"), 10_000);
+let detectionQueue = Promise.resolve();
+const scheduleDetection = (reason: "poll" | "websocket"): void => {
+  detectionQueue = detectionQueue
+    .then(() => detect(reason))
+    .catch((error: unknown) => {
+      console.error("Upgrade proof reconciliation failed", { error, reason });
+    });
+};
+
+if (!pollingOnly) {
+  monitor = new SolanaWebSocketMonitor({
+    endpoint: config.SOLANA_RPC_WS_URL,
+    onAccountChange: () => scheduleDetection("websocket"),
+    onHealthChange: ({ state }) => console.info("WebSocket", state),
+    reconnectBaseDelayMs: config.WS_RECONNECT_BASE_DELAY_MS,
+  });
+  monitor.watch(baseline.program.programDataAddress);
+  monitor.start();
+}
+pollTimer = setInterval(() => scheduleDetection("poll"), 10_000);

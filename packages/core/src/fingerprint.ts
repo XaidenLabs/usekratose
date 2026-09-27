@@ -202,6 +202,7 @@ export function createOwnerChangeSnapshot(input: {
   readonly observedAt: Date;
   readonly observedSlot: bigint;
   readonly previous: VersionSnapshot;
+  readonly programExecutable?: boolean;
   readonly programOwner: string;
 }): SnapshotCandidate {
   return finalizeSnapshotState({
@@ -217,7 +218,8 @@ export function createOwnerChangeSnapshot(input: {
     observedSlot: input.observedSlot,
     programAddress: input.previous.programAddress,
     programDataAddress: input.previous.programDataAddress,
-    programExecutable: input.previous.programExecutable,
+    programExecutable:
+      input.programExecutable ?? input.previous.programExecutable,
     programOwner: input.programOwner,
     sourceReferenceHash: input.previous.sourceReferenceHash,
     sourceRepositoryUrl: input.previous.sourceRepositoryUrl,

@@ -12,6 +12,7 @@ import type {
   ReconciliationReason,
 } from "@usekratose/core";
 import { SolanaWebSocketMonitor } from "@usekratose/solana";
+import type { WebSocketProvider } from "@usekratose/solana";
 
 export interface MonitorCoordinatorOptions {
   readonly alertDeliveryIntervalMs?: number;
@@ -26,12 +27,15 @@ export interface MonitorCoordinatorOptions {
   readonly reconnectBaseDelayMs: number;
   readonly store: ProgramStore;
   readonly websocketEndpoint: string;
+  readonly websocketFallbackProviders?: readonly WebSocketProvider[];
+  readonly websocketProviderName?: string;
 }
 
 export class MonitorCoordinator {
   private alertTimer: NodeJS.Timeout | null = null;
   private explanationTimer: NodeJS.Timeout | null = null;
   private readonly addressToPrograms = new Map<string, Set<string>>();
+  private readonly programToAddress = new Map<string, string>();
   private portfolioTimer: NodeJS.Timeout | null = null;
   private reconciliationTimer: NodeJS.Timeout | null = null;
   private readonly pending = new Map<string, Promise<void>>();
@@ -48,6 +52,9 @@ export class MonitorCoordinator {
     );
     this.websocket = new SolanaWebSocketMonitor({
       endpoint: options.websocketEndpoint,
+      ...(options.websocketFallbackProviders === undefined
+        ? {}
+        : { fallbackProviders: options.websocketFallbackProviders }),
       onAccountChange: ({ address, observedSlot }) => {
         console.info("WebSocket change signal", {
           address,
@@ -57,8 +64,12 @@ export class MonitorCoordinator {
           this.enqueue(programId, "websocket");
         }
       },
-      onHealthChange: ({ error, state }) => {
-        console.info("WebSocket health", { error: error?.message, state });
+      onHealthChange: ({ error, provider, state }) => {
+        console.info("WebSocket health", {
+          error: error?.message,
+          provider,
+          state,
+        });
         this.socketHealthy = state === "connected";
         if (state === "connected") {
           this.enqueueAll("websocket-reconnect");
@@ -66,6 +77,9 @@ export class MonitorCoordinator {
           this.markAllDegraded();
         }
       },
+      ...(options.websocketProviderName === undefined
+        ? {}
+        : { providerName: options.websocketProviderName }),
       reconnectBaseDelayMs: options.reconnectBaseDelayMs,
     });
   }
@@ -164,6 +178,10 @@ export class MonitorCoordinator {
     const programs = await this.options.store.listActivePrograms(
       this.options.cluster,
     );
+    const activeProgramIds = new Set(programs.map((program) => program.id));
+    for (const programId of this.programToAddress.keys()) {
+      if (!activeProgramIds.has(programId)) this.unregisterProgram(programId);
+    }
     for (const program of programs) this.registerProgram(program);
   }
 
@@ -184,10 +202,29 @@ export class MonitorCoordinator {
   }
 
   private registerProgram(program: MonitoredProgram): void {
+    const previousAddress = this.programToAddress.get(program.id);
+    if (
+      previousAddress !== undefined &&
+      previousAddress !== program.programDataAddress
+    ) {
+      this.unregisterProgram(program.id);
+    }
     const ids =
       this.addressToPrograms.get(program.programDataAddress) ?? new Set();
     ids.add(program.id);
     this.addressToPrograms.set(program.programDataAddress, ids);
+    this.programToAddress.set(program.id, program.programDataAddress);
     this.websocket.watch(program.programDataAddress);
+  }
+
+  private unregisterProgram(programId: string): void {
+    const address = this.programToAddress.get(programId);
+    if (address === undefined) return;
+    this.programToAddress.delete(programId);
+    const ids = this.addressToPrograms.get(address);
+    ids?.delete(programId);
+    if (ids === undefined || ids.size > 0) return;
+    this.addressToPrograms.delete(address);
+    this.websocket.unwatch(address);
   }
 }

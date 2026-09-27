@@ -6,6 +6,8 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsx watch src/main.ts",
+    "explain:event": "tsx src/explain-event.ts",
+    "proof:polling-recovery": "tsx src/prove-upgrade.ts --polling-only",
     "proof:upgrade": "tsx src/prove-upgrade.ts",
     "security:diff": "tsx src/print-security-diff.ts",
     "start": "node dist/main.js",

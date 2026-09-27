@@ -6,12 +6,21 @@ import {
 import { createPostgresStore } from "@usekratose/database";
 import { z } from "zod";
 
+import { loadLocalEnvironment } from "./load-local-environment.js";
+
+loadLocalEnvironment();
+
 const environmentSchema = z.object({
-  DATABASE_URL: z.string().url(),
+  DATABASE_URL: z.preprocess(
+    (value) => value ?? process.env.SUPABASE_DATABASE_URL,
+    z.string().url(),
+  ),
   SOLANA_CLUSTER: z.enum(["devnet", "mainnet-beta"]),
 });
 
-const programAddress = process.argv[2];
+const programAddress = process.argv
+  .slice(2)
+  .find((argument) => argument !== "--" && !argument.startsWith("--"));
 const jsonOutput = process.argv.includes("--json");
 if (programAddress === undefined) {
   throw new Error(

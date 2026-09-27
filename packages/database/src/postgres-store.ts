@@ -25,10 +25,16 @@ import type {
 } from "@usekratose/alerts";
 import type {
   ExplanationStore,
+  ProgramAnalysisEvidence,
+  ProgramSecurityAnalysis,
   SecurityExplanation,
   UnexplainedSecurityEvent,
 } from "@usekratose/explanations";
-import postgres, { type Sql, type TransactionSql } from "postgres";
+import postgres, {
+  type JSONValue,
+  type Sql,
+  type TransactionSql,
+} from "postgres";
 
 type QuerySql = Sql | TransactionSql;
 
@@ -40,12 +46,27 @@ interface ProgramRow {
   programdata_address: string;
 }
 
+interface ProjectProgramRow extends ProgramRow {
+  display_name: string;
+}
+
+export interface ProjectProgramMonitor {
+  readonly displayName: string;
+  readonly program: MonitoredProgram;
+}
+
 interface ApiKeyRow {
   id: string;
   key_prefix: string;
   name: string;
   project_id: string;
   revoked_at: Date | null;
+}
+
+interface ProjectRow {
+  id: string;
+  name: string;
+  owner_user_id: string | null;
 }
 
 interface SnapshotRow {
@@ -55,9 +76,9 @@ interface SnapshotRow {
   executable_size: number;
   fingerprint: string;
   id: string;
-  idl: NormalizedIdl | null;
+  idl: NormalizedIdl | string | null;
   idl_hash: string | null;
-  idl_instructions: readonly string[] | null;
+  idl_instructions: readonly string[] | string | null;
   metadata_hash: string | null;
   observed_at: Date;
   observed_slot: string;
@@ -78,7 +99,7 @@ interface SnapshotRow {
 interface SecurityEventRow {
   current_snapshot_id: string;
   detected_at: Date;
-  evidence: Readonly<Record<string, unknown>>;
+  evidence: Readonly<Record<string, unknown>> | string;
   id: string;
   previous_snapshot_id: string;
   program_id: string;
@@ -126,6 +147,20 @@ export interface ProgramClaim {
   readonly status: "pending" | "verified" | "rejected";
 }
 
+export interface RecentPublicSecurityActivity {
+  readonly currentSnapshot: VersionSnapshot;
+  readonly event: SecurityEvent;
+  readonly previousSnapshot: VersionSnapshot;
+  readonly program: MonitoredProgram;
+}
+
+interface RecentPublicSecurityEventRow extends SecurityEventRow {
+  program_address: string;
+  program_cluster: Cluster;
+  program_monitoring_status: MonitoringStatus;
+  program_programdata_address: string;
+}
+
 interface ProgramClaimRow {
   created_at: Date;
   id: string;
@@ -136,11 +171,130 @@ interface ProgramClaimRow {
 
 interface ExplanationRow {
   created_at: Date;
-  explanation: SecurityExplanation;
+  explanation: SecurityExplanation | string;
   model: string;
   prompt_version: string;
   provider: string;
   security_event_id: string;
+}
+
+interface ProgramAnalysisRow {
+  analysis: ProgramSecurityAnalysis | string;
+  created_at: Date;
+  current_snapshot_id: string;
+  evidence_hash: string;
+  evidence_input: ProgramAnalysisEvidence | string;
+  id: string;
+  model: string;
+  program_id: string;
+  prompt_version: string;
+  provider: string;
+}
+
+interface ProgramSourceWorkspaceRow {
+  base_branch: string | null;
+  binary_hash: string | null;
+  binary_matches_deployment: boolean | null;
+  binary_size: number | null;
+  created_at: Date;
+  github_installation_id: string | null;
+  id: string;
+  idl: unknown | string | null;
+  idl_hash: string | null;
+  program_id: string;
+  project_id: string;
+  provider: ProgramSourceWorkspace["provider"];
+  repository_name: string | null;
+  repository_owner: string | null;
+  repository_url: string | null;
+  revision: string | null;
+  status: ProgramSourceWorkspace["status"];
+  updated_at: Date;
+}
+
+interface ProgramSourceFileRow {
+  created_at: Date;
+  id: string;
+  language: string;
+  object_path: string | null;
+  path: string;
+  size: number;
+  source_hash: string;
+  updated_at: Date;
+  workspace_id: string;
+}
+
+interface ProgramFixReviewRow {
+  analysis_id: string;
+  branch_name: string | null;
+  created_at: Date;
+  decided_at: Date | null;
+  finding_id: string;
+  id: string;
+  patches: ProgramFixReview["patches"] | string;
+  pull_request_url: string | null;
+  status: ProgramFixReview["status"];
+  updated_at: Date;
+}
+
+export interface ProgramSourceFile {
+  readonly createdAt: Date;
+  readonly id: string;
+  readonly language: string;
+  readonly objectPath: string | null;
+  readonly path: string;
+  readonly size: number;
+  readonly sourceHash: string;
+  readonly updatedAt: Date;
+  readonly workspaceId: string;
+}
+
+export interface ProgramSourceWorkspace {
+  readonly baseBranch: string | null;
+  readonly binaryHash: string | null;
+  readonly binaryMatchesDeployment: boolean | null;
+  readonly binarySize: number | null;
+  readonly createdAt: Date;
+  readonly files: readonly ProgramSourceFile[];
+  readonly githubInstallationId: string | null;
+  readonly id: string;
+  readonly idl: unknown | null;
+  readonly idlHash: string | null;
+  readonly programId: string;
+  readonly projectId: string;
+  readonly provider: "github" | "upload";
+  readonly repositoryName: string | null;
+  readonly repositoryOwner: string | null;
+  readonly repositoryUrl: string | null;
+  readonly revision: string | null;
+  readonly status: "connected" | "error" | "needs_installation";
+  readonly updatedAt: Date;
+}
+
+export interface ProgramFixReview {
+  readonly analysisId: string;
+  readonly branchName: string | null;
+  readonly createdAt: Date;
+  readonly decidedAt: Date | null;
+  readonly findingId: string;
+  readonly id: string;
+  readonly patches: ProgramSecurityAnalysis["corrections"][number]["patches"];
+  readonly pullRequestUrl: string | null;
+  readonly status: "applied" | "proposed" | "rejected";
+  readonly updatedAt: Date;
+}
+
+export interface StoredProgramAnalysis {
+  readonly analysis: ProgramSecurityAnalysis;
+  readonly createdAt: Date;
+  readonly currentSnapshotId: string;
+  readonly evidenceHash: string;
+  readonly evidenceInput: ProgramAnalysisEvidence;
+  readonly id: string;
+  readonly model: string;
+  readonly programId: string;
+  readonly promptVersion: string;
+  readonly provider: string;
 }
 
 function mapProgram(row: ProgramRow): MonitoredProgram {
@@ -163,6 +317,85 @@ function mapApiKey(row: ApiKeyRow): ApiKeyRecord {
   };
 }
 
+function parseJsonColumn<T>(value: T | string): T {
+  return typeof value === "string" ? (JSON.parse(value) as T) : value;
+}
+
+function mapProgramAnalysis(row: ProgramAnalysisRow): StoredProgramAnalysis {
+  return {
+    analysis: parseJsonColumn<ProgramSecurityAnalysis>(row.analysis),
+    createdAt: row.created_at,
+    currentSnapshotId: row.current_snapshot_id,
+    evidenceHash: row.evidence_hash,
+    evidenceInput: parseJsonColumn<ProgramAnalysisEvidence>(row.evidence_input),
+    id: row.id,
+    model: row.model,
+    programId: row.program_id,
+    promptVersion: row.prompt_version,
+    provider: row.provider,
+  };
+}
+
+function mapSourceFile(row: ProgramSourceFileRow): ProgramSourceFile {
+  return {
+    createdAt: row.created_at,
+    id: row.id,
+    language: row.language,
+    objectPath: row.object_path,
+    path: row.path,
+    size: row.size,
+    sourceHash: row.source_hash,
+    updatedAt: row.updated_at,
+    workspaceId: row.workspace_id,
+  };
+}
+
+function mapFixReview(row: ProgramFixReviewRow): ProgramFixReview {
+  return {
+    analysisId: row.analysis_id,
+    branchName: row.branch_name,
+    createdAt: row.created_at,
+    decidedAt: row.decided_at,
+    findingId: row.finding_id,
+    id: row.id,
+    patches: parseJsonColumn<ProgramFixReview["patches"]>(row.patches),
+    pullRequestUrl: row.pull_request_url,
+    status: row.status,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapSourceWorkspace(
+  row: ProgramSourceWorkspaceRow,
+  files: readonly ProgramSourceFile[],
+): ProgramSourceWorkspace {
+  return {
+    baseBranch: row.base_branch,
+    binaryHash: row.binary_hash,
+    binaryMatchesDeployment: row.binary_matches_deployment,
+    binarySize: row.binary_size,
+    createdAt: row.created_at,
+    files,
+    githubInstallationId: row.github_installation_id,
+    id: row.id,
+    idl: row.idl === null ? null : parseJsonColumn<unknown>(row.idl),
+    idlHash: row.idl_hash,
+    programId: row.program_id,
+    projectId: row.project_id,
+    provider: row.provider,
+    repositoryName: row.repository_name,
+    repositoryOwner: row.repository_owner,
+    repositoryUrl: row.repository_url,
+    revision: row.revision,
+    status: row.status,
+    updatedAt: row.updated_at,
+  };
+}
+
+function jsonValue(value: unknown): JSONValue {
+  return value as JSONValue;
+}
+
 function mapSnapshot(row: SnapshotRow): VersionSnapshot {
   return {
     accountDataHash: row.account_data_hash,
@@ -171,9 +404,12 @@ function mapSnapshot(row: SnapshotRow): VersionSnapshot {
     executableSize: row.executable_size,
     fingerprint: row.fingerprint,
     id: row.id,
-    idl: row.idl,
+    idl: row.idl === null ? null : parseJsonColumn<NormalizedIdl>(row.idl),
     idlHash: row.idl_hash,
-    idlInstructions: row.idl_instructions,
+    idlInstructions:
+      row.idl_instructions === null
+        ? null
+        : parseJsonColumn<readonly string[]>(row.idl_instructions),
     metadataHash: row.metadata_hash,
     observedAt: row.observed_at,
     observedSlot: BigInt(row.observed_slot),
@@ -196,7 +432,7 @@ function mapSecurityEvent(row: SecurityEventRow): SecurityEvent {
   return {
     currentSnapshotId: row.current_snapshot_id,
     detectedAt: row.detected_at,
-    evidence: row.evidence,
+    evidence: parseJsonColumn<Readonly<Record<string, unknown>>>(row.evidence),
     id: row.id,
     previousSnapshotId: row.previous_snapshot_id,
     programId: row.program_id,
@@ -228,8 +464,12 @@ export class PostgresProgramStore
   ): Promise<void> {
     await this.createProject(organizationId, organizationId);
     const inserted = await this.sql<{ readonly program_id: string }[]>`
-      INSERT INTO organization_program_monitors (organization_id, program_id)
-      VALUES (${organizationId}, ${programId})
+      INSERT INTO organization_program_monitors (
+        organization_id, program_id, display_name
+      )
+      SELECT ${organizationId}, programs.id, programs.address
+      FROM programs
+      WHERE programs.id = ${programId}
       ON CONFLICT DO NOTHING
       RETURNING program_id
     `;
@@ -242,6 +482,53 @@ export class PostgresProgramStore
     }
   }
 
+  public async listProgramMonitorsForProject(
+    projectId: string,
+  ): Promise<readonly ProjectProgramMonitor[]> {
+    const rows = await this.sql<ProjectProgramRow[]>`
+      SELECT programs.id, programs.cluster, programs.address,
+        programs.programdata_address, programs.monitoring_status,
+        monitors.display_name
+      FROM programs
+      JOIN organization_program_monitors monitors
+        ON monitors.program_id = programs.id
+      WHERE monitors.organization_id = ${projectId}
+      ORDER BY programs.updated_at DESC, programs.id DESC
+    `;
+    return rows.map((row) => ({
+      displayName: row.display_name,
+      program: mapProgram(row),
+    }));
+  }
+
+  public async removeOrganizationMonitor(
+    organizationId: string,
+    programId: string,
+  ): Promise<boolean> {
+    const deleted = await this.sql<{ readonly program_id: string }[]>`
+      DELETE FROM organization_program_monitors
+      WHERE organization_id = ${organizationId}
+        AND program_id = ${programId}
+      RETURNING program_id
+    `;
+    return deleted.length === 1;
+  }
+
+  public async setOrganizationMonitorName(
+    organizationId: string,
+    programId: string,
+    displayName: string,
+  ): Promise<boolean> {
+    const updated = await this.sql<{ readonly program_id: string }[]>`
+      UPDATE organization_program_monitors
+      SET display_name = ${displayName}
+      WHERE organization_id = ${organizationId}
+        AND program_id = ${programId}
+      RETURNING program_id
+    `;
+    return updated.length === 1;
+  }
+
   public async createOrGetProgram(
     input: CreateProgramInput,
   ): Promise<MonitoredProgram> {
@@ -252,7 +539,6 @@ export class PostgresProgramStore
         ${input.cluster}, ${input.address}, ${input.programDataAddress}, ${input.status}
       )
       ON CONFLICT (cluster, address) DO UPDATE SET
-        programdata_address = EXCLUDED.programdata_address,
         updated_at = now()
       RETURNING id, cluster, address, programdata_address, monitoring_status
     `;
@@ -265,6 +551,34 @@ export class PostgresProgramStore
       INSERT INTO projects (id, name) VALUES (${projectId}, ${name})
       ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, updated_at = now()
     `;
+  }
+
+  public async createProjectForUser(input: {
+    readonly name: string;
+    readonly projectId: string;
+    readonly userId: string;
+  }): Promise<{ readonly id: string; readonly name: string }> {
+    const [row] = await this.sql<ProjectRow[]>`
+      INSERT INTO projects (id, name, owner_user_id)
+      VALUES (${input.projectId}, ${input.name}, ${input.userId}::uuid)
+      ON CONFLICT (owner_user_id) WHERE owner_user_id IS NOT NULL
+      DO UPDATE SET name = EXCLUDED.name, updated_at = now()
+      RETURNING id, name, owner_user_id
+    `;
+    if (row === undefined) throw new Error("Failed to create user project");
+    return { id: row.id, name: row.name };
+  }
+
+  public async getProjectForUser(
+    userId: string,
+  ): Promise<{ readonly id: string; readonly name: string } | null> {
+    const [row] = await this.sql<ProjectRow[]>`
+      SELECT id, name, owner_user_id
+      FROM projects
+      WHERE owner_user_id = ${userId}::uuid
+      LIMIT 1
+    `;
+    return row === undefined ? null : { id: row.id, name: row.name };
   }
 
   public async createApiKey(input: {
@@ -417,6 +731,60 @@ export class PostgresProgramStore
     return rows.map(mapProgram);
   }
 
+  public async listRecentPublicSecurityActivity(
+    limit = 2,
+  ): Promise<readonly RecentPublicSecurityActivity[]> {
+    const rows = await this.sql<RecentPublicSecurityEventRow[]>`
+      SELECT events.*, programs.address AS program_address,
+        programs.cluster AS program_cluster,
+        programs.monitoring_status AS program_monitoring_status,
+        programs.programdata_address AS program_programdata_address
+      FROM security_events events
+      JOIN programs ON programs.id = events.program_id
+      ORDER BY events.detected_at DESC, events.created_at DESC, events.id DESC
+      LIMIT ${limit}
+    `;
+    if (rows.length === 0) return [];
+
+    const snapshotIds = [
+      ...new Set(
+        rows.flatMap((row) => [
+          row.previous_snapshot_id,
+          row.current_snapshot_id,
+        ]),
+      ),
+    ];
+    const snapshotRows = await this.sql<SnapshotRow[]>`
+      SELECT * FROM version_snapshots
+      WHERE id = ANY(${snapshotIds}::uuid[])
+    `;
+    const snapshots = new Map(
+      snapshotRows.map((row) => [row.id, mapSnapshot(row)]),
+    );
+
+    return rows.flatMap((row) => {
+      const previousSnapshot = snapshots.get(row.previous_snapshot_id);
+      const currentSnapshot = snapshots.get(row.current_snapshot_id);
+      if (previousSnapshot === undefined || currentSnapshot === undefined) {
+        return [];
+      }
+      return [
+        {
+          currentSnapshot,
+          event: mapSecurityEvent(row),
+          previousSnapshot,
+          program: {
+            address: row.program_address,
+            cluster: row.program_cluster,
+            id: row.program_id,
+            monitoringStatus: row.program_monitoring_status,
+            programDataAddress: row.program_programdata_address,
+          },
+        },
+      ];
+    });
+  }
+
   public async listSnapshots(
     programId: string,
     limit = 100,
@@ -453,8 +821,10 @@ export class PostgresProgramStore
   }
 
   public async listEventsMissingExplanation(input: {
+    readonly eventId?: string;
     readonly limit: number;
     readonly model: string;
+    readonly programId?: string;
     readonly promptVersion: string;
     readonly provider: string;
   }): Promise<readonly UnexplainedSecurityEvent[]> {
@@ -464,7 +834,9 @@ export class PostgresProgramStore
       SELECT events.*, programs.address AS program_address
       FROM security_events events
       JOIN programs ON programs.id = events.program_id
-      WHERE NOT EXISTS (
+      WHERE (${input.eventId ?? null}::uuid IS NULL OR events.id = ${input.eventId ?? null}::uuid)
+        AND (${input.programId ?? null}::uuid IS NULL OR events.program_id = ${input.programId ?? null}::uuid)
+        AND NOT EXISTS (
         SELECT 1 FROM ai_explanations explanations
         WHERE explanations.security_event_id = events.id
           AND explanations.provider = ${input.provider}
@@ -496,8 +868,8 @@ export class PostgresProgramStore
       ) VALUES (
         ${input.eventId}, ${input.provider}, ${input.model},
         ${input.promptVersion}, ${input.evidenceHash},
-        ${JSON.stringify(input.evidenceInput)}::jsonb,
-        ${JSON.stringify(input.explanation)}::jsonb
+        ${this.sql.json(jsonValue(input.evidenceInput))},
+        ${this.sql.json(jsonValue(input.explanation))}
       )
       ON CONFLICT (
         security_event_id, provider, model, prompt_version, evidence_hash
@@ -519,11 +891,254 @@ export class PostgresProgramStore
     return rows.map((row) => ({
       createdAt: row.created_at,
       eventId: row.security_event_id,
-      explanation: row.explanation,
+      explanation: parseJsonColumn<SecurityExplanation>(row.explanation),
       model: row.model,
       promptVersion: row.prompt_version,
       provider: row.provider,
     }));
+  }
+
+  public async getProgramAnalysis(input: {
+    readonly currentSnapshotId: string;
+    readonly evidenceHash: string;
+    readonly model: string;
+    readonly programId: string;
+    readonly promptVersion: string;
+    readonly provider: string;
+  }): Promise<StoredProgramAnalysis | null> {
+    const [row] = await this.sql<ProgramAnalysisRow[]>`
+      SELECT *
+      FROM program_ai_analyses
+      WHERE program_id = ${input.programId}
+        AND current_snapshot_id = ${input.currentSnapshotId}
+        AND provider = ${input.provider}
+        AND model = ${input.model}
+        AND prompt_version = ${input.promptVersion}
+        AND evidence_hash = ${input.evidenceHash}
+      LIMIT 1
+    `;
+    return row === undefined ? null : mapProgramAnalysis(row);
+  }
+
+  public async saveProgramAnalysis(input: {
+    readonly analysis: ProgramSecurityAnalysis;
+    readonly currentSnapshotId: string;
+    readonly evidenceHash: string;
+    readonly evidenceInput: ProgramAnalysisEvidence;
+    readonly model: string;
+    readonly programId: string;
+    readonly promptVersion: string;
+    readonly provider: string;
+  }): Promise<StoredProgramAnalysis> {
+    const [row] = await this.sql<ProgramAnalysisRow[]>`
+      INSERT INTO program_ai_analyses (
+        program_id, current_snapshot_id, provider, model, prompt_version,
+        evidence_hash, evidence_input, analysis
+      ) VALUES (
+        ${input.programId}, ${input.currentSnapshotId}, ${input.provider},
+        ${input.model}, ${input.promptVersion}, ${input.evidenceHash},
+        ${this.sql.json(jsonValue(input.evidenceInput))},
+        ${this.sql.json(jsonValue(input.analysis))}
+      )
+      ON CONFLICT (
+        program_id, current_snapshot_id, provider, model, prompt_version,
+        evidence_hash
+      ) DO UPDATE SET analysis = EXCLUDED.analysis
+      RETURNING *
+    `;
+    if (row === undefined) throw new Error("Failed to save program analysis");
+    return mapProgramAnalysis(row);
+  }
+
+  public async getProgramAnalysisById(
+    analysisId: string,
+  ): Promise<StoredProgramAnalysis | null> {
+    const [row] = await this.sql<ProgramAnalysisRow[]>`
+      SELECT * FROM program_ai_analyses WHERE id = ${analysisId} LIMIT 1
+    `;
+    return row === undefined ? null : mapProgramAnalysis(row);
+  }
+
+  public async getProgramSourceWorkspace(
+    projectId: string,
+    programId: string,
+  ): Promise<ProgramSourceWorkspace | null> {
+    const [row] = await this.sql<ProgramSourceWorkspaceRow[]>`
+      SELECT *
+      FROM program_source_workspaces
+      WHERE project_id = ${projectId} AND program_id = ${programId}
+      LIMIT 1
+    `;
+    if (row === undefined) return null;
+    const files = await this.sql<ProgramSourceFileRow[]>`
+      SELECT * FROM program_source_files
+      WHERE workspace_id = ${row.id}
+      ORDER BY path ASC
+    `;
+    return mapSourceWorkspace(row, files.map(mapSourceFile));
+  }
+
+  public async upsertProgramSourceWorkspace(input: {
+    readonly baseBranch?: string | null;
+    readonly githubInstallationId?: string | null;
+    readonly programId: string;
+    readonly projectId: string;
+    readonly provider: ProgramSourceWorkspace["provider"];
+    readonly repositoryName?: string | null;
+    readonly repositoryOwner?: string | null;
+    readonly repositoryUrl?: string | null;
+    readonly revision?: string | null;
+    readonly status?: ProgramSourceWorkspace["status"];
+  }): Promise<ProgramSourceWorkspace> {
+    const [row] = await this.sql<ProgramSourceWorkspaceRow[]>`
+      INSERT INTO program_source_workspaces (
+        project_id, program_id, provider, repository_url, repository_owner,
+        repository_name, base_branch, revision, github_installation_id, status
+      ) VALUES (
+        ${input.projectId}, ${input.programId}, ${input.provider},
+        ${input.repositoryUrl ?? null}, ${input.repositoryOwner ?? null},
+        ${input.repositoryName ?? null}, ${input.baseBranch ?? null},
+        ${input.revision ?? null}, ${input.githubInstallationId ?? null},
+        ${input.status ?? "connected"}
+      )
+      ON CONFLICT (project_id, program_id) DO UPDATE SET
+        provider = EXCLUDED.provider,
+        repository_url = EXCLUDED.repository_url,
+        repository_owner = EXCLUDED.repository_owner,
+        repository_name = EXCLUDED.repository_name,
+        base_branch = EXCLUDED.base_branch,
+        revision = EXCLUDED.revision,
+        github_installation_id = EXCLUDED.github_installation_id,
+        status = EXCLUDED.status,
+        updated_at = now()
+      RETURNING *
+    `;
+    if (row === undefined) throw new Error("Failed to save source workspace");
+    return mapSourceWorkspace(row, []);
+  }
+
+  public async replaceProgramSourceFiles(
+    workspaceId: string,
+    files: readonly {
+      readonly language: string;
+      readonly objectPath: string | null;
+      readonly path: string;
+      readonly size: number;
+      readonly sourceHash: string;
+    }[],
+  ): Promise<void> {
+    await this.sql.begin(async (transaction) => {
+      await transaction`
+        DELETE FROM program_source_files WHERE workspace_id = ${workspaceId}
+      `;
+      for (const file of files) {
+        await transaction`
+          INSERT INTO program_source_files (
+            workspace_id, path, object_path, source_hash, size, language
+          ) VALUES (
+            ${workspaceId}, ${file.path}, ${file.objectPath},
+            ${file.sourceHash}, ${file.size}, ${file.language}
+          )
+        `;
+      }
+    });
+  }
+
+  public async saveProgramArtifactEvidence(input: {
+    readonly binaryHash?: string | null;
+    readonly binaryMatchesDeployment?: boolean | null;
+    readonly binarySize?: number | null;
+    readonly idl?: unknown | null;
+    readonly idlHash?: string | null;
+    readonly workspaceId: string;
+  }): Promise<void> {
+    await this.sql`
+      UPDATE program_source_workspaces
+      SET
+        binary_hash = COALESCE(${input.binaryHash ?? null}, binary_hash),
+        binary_matches_deployment = COALESCE(
+          ${input.binaryMatchesDeployment ?? null}, binary_matches_deployment
+        ),
+        binary_size = COALESCE(${input.binarySize ?? null}, binary_size),
+        idl = COALESCE(
+          ${input.idl === undefined || input.idl === null ? null : this.sql.json(jsonValue(input.idl))},
+          idl
+        ),
+        idl_hash = COALESCE(${input.idlHash ?? null}, idl_hash),
+        updated_at = now()
+      WHERE id = ${input.workspaceId}
+    `;
+  }
+
+  public async saveProgramFixReviews(
+    analysisId: string,
+    findings: ProgramSecurityAnalysis["corrections"],
+  ): Promise<readonly ProgramFixReview[]> {
+    const reviews: ProgramFixReview[] = [];
+    for (const finding of findings) {
+      if (finding.patches.length === 0) continue;
+      const [row] = await this.sql<ProgramFixReviewRow[]>`
+        INSERT INTO program_fix_reviews (analysis_id, finding_id, patches)
+        VALUES (
+          ${analysisId}, ${finding.id},
+          ${this.sql.json(jsonValue(finding.patches))}
+        )
+        ON CONFLICT (analysis_id, finding_id) DO UPDATE SET
+          patches = CASE
+            WHEN program_fix_reviews.status = 'proposed' THEN EXCLUDED.patches
+            ELSE program_fix_reviews.patches
+          END,
+          updated_at = now()
+        RETURNING *
+      `;
+      if (row !== undefined) reviews.push(mapFixReview(row));
+    }
+    return reviews;
+  }
+
+  public async listProgramFixReviews(
+    analysisId: string,
+  ): Promise<readonly ProgramFixReview[]> {
+    const rows = await this.sql<ProgramFixReviewRow[]>`
+      SELECT * FROM program_fix_reviews
+      WHERE analysis_id = ${analysisId}
+      ORDER BY created_at ASC, id ASC
+    `;
+    return rows.map(mapFixReview);
+  }
+
+  public async getProgramFixReview(
+    analysisId: string,
+    findingId: string,
+  ): Promise<ProgramFixReview | null> {
+    const [row] = await this.sql<ProgramFixReviewRow[]>`
+      SELECT * FROM program_fix_reviews
+      WHERE analysis_id = ${analysisId} AND finding_id = ${findingId}
+      LIMIT 1
+    `;
+    return row === undefined ? null : mapFixReview(row);
+  }
+
+  public async decideProgramFixReview(input: {
+    readonly analysisId: string;
+    readonly branchName?: string | null;
+    readonly findingId: string;
+    readonly pullRequestUrl?: string | null;
+    readonly status: "applied" | "rejected";
+  }): Promise<ProgramFixReview | null> {
+    const [row] = await this.sql<ProgramFixReviewRow[]>`
+      UPDATE program_fix_reviews
+      SET status = ${input.status},
+          branch_name = ${input.branchName ?? null},
+          pull_request_url = ${input.pullRequestUrl ?? null},
+          decided_at = now(),
+          updated_at = now()
+      WHERE analysis_id = ${input.analysisId}
+        AND finding_id = ${input.findingId}
+        AND status = 'proposed'
+      RETURNING *
+    `;
+    return row === undefined ? null : mapFixReview(row);
   }
 
   public async createProgramClaim(input: {
@@ -535,7 +1150,7 @@ export class PostgresProgramStore
       INSERT INTO program_claims (program_id, project_id, evidence)
       VALUES (
         ${input.programId}, ${input.projectId},
-        ${JSON.stringify(input.evidence)}::jsonb
+        ${this.sql.json(jsonValue(input.evidence))}
       )
       ON CONFLICT (program_id, project_id) DO UPDATE SET
         evidence = EXCLUDED.evidence
@@ -584,17 +1199,20 @@ export class PostgresProgramStore
       ) VALUES (
         ${input.metricName}, ${input.programId ?? null},
         ${input.projectId ?? null},
-        ${JSON.stringify(input.metadata ?? {})}::jsonb
+        ${this.sql.json(jsonValue(input.metadata ?? {}))}
       )
     `;
   }
 
-  public async metricCounts(): Promise<Readonly<Record<string, number>>> {
+  public async metricCounts(
+    input: { readonly projectId?: string } = {},
+  ): Promise<Readonly<Record<string, number>>> {
     const rows = await this.sql<
       { readonly count: string; readonly metric_name: string }[]
     >`
       SELECT metric_name, count(*)::text AS count
       FROM product_metrics
+      WHERE (${input.projectId ?? null}::text IS NULL OR project_id = ${input.projectId ?? null})
       GROUP BY metric_name
     `;
     return Object.fromEntries(
@@ -766,13 +1384,7 @@ export class PostgresProgramStore
   public async getLatestSnapshot(
     programId: string,
   ): Promise<VersionSnapshot | null> {
-    const [row] = await this.sql<SnapshotRow[]>`
-      SELECT * FROM version_snapshots
-      WHERE program_id = ${programId}
-      ORDER BY observed_slot DESC, created_at DESC, id DESC
-      LIMIT 1
-    `;
-    return row === undefined ? null : mapSnapshot(row);
+    return this.findLatestSnapshot(this.sql, programId);
   }
 
   public async getLatestSnapshotPairByAddress(
@@ -833,27 +1445,31 @@ export class PostgresProgramStore
     programId: string,
     candidate: SnapshotCandidate,
   ): Promise<VersionSnapshot> {
-    const [row] = await this.insertSnapshot(this.sql, programId, candidate);
-    if (row !== undefined) {
-      const snapshot = mapSnapshot(row);
-      await this.persistArtifacts(this.sql, snapshot);
-      await this.recordMetric({
-        metricName: "snapshots_created",
+    return this.sql.begin(async (transaction) => {
+      await transaction`
+        SELECT id FROM programs WHERE id = ${programId} FOR UPDATE
+      `;
+      const existing = await this.findLatestSnapshot(transaction, programId);
+      if (existing !== null) return existing;
+      const [row] = await this.insertSnapshot(
+        transaction,
         programId,
-      });
+        candidate,
+      );
+      if (row === undefined) throw new Error("Failed to persist baseline");
+      const snapshot = mapSnapshot(row);
+      await this.persistArtifacts(transaction, snapshot);
+      await transaction`
+        INSERT INTO product_metrics (metric_name, program_id, metadata)
+        VALUES ('snapshots_created', ${programId}, '{}'::jsonb)
+      `;
       return snapshot;
-    }
-    const existing = await this.findSnapshotByFingerprint(
-      this.sql,
-      programId,
-      candidate.fingerprint,
-    );
-    if (existing === null) throw new Error("Failed to persist baseline");
-    return existing;
+    });
   }
 
   public async persistTransition(
     programId: string,
+    previousSnapshotId: string,
     candidate: SnapshotCandidate,
     eventCandidates: readonly SecurityEventCandidate[],
   ): Promise<PersistedTransition> {
@@ -863,10 +1479,41 @@ export class PostgresProgramStore
         eventCandidates.some(
           (event) =>
             event.currentFingerprint !== candidate.fingerprint ||
-            event.programId !== programId,
+            event.programId !== programId ||
+            event.previousSnapshotId !== previousSnapshotId,
         )
       ) {
         throw new Error("Event candidate fingerprint does not match snapshot");
+      }
+
+      await transaction`
+        SELECT id FROM programs WHERE id = ${programId} FOR UPDATE
+      `;
+      const latest = await this.findLatestSnapshot(transaction, programId);
+      if (latest === null) {
+        throw new Error("Cannot persist a transition without a baseline");
+      }
+      if (latest.fingerprint === candidate.fingerprint) {
+        const events = await transaction<SecurityEventRow[]>`
+          SELECT * FROM security_events
+          WHERE previous_snapshot_id = ${previousSnapshotId}
+            AND current_snapshot_id = ${latest.id}
+          ORDER BY created_at ASC, type ASC
+        `;
+        return {
+          events: events.map(mapSecurityEvent),
+          inserted: false,
+          outcome: "duplicate" as const,
+          snapshot: latest,
+        };
+      }
+      if (latest.id !== previousSnapshotId) {
+        return {
+          events: [],
+          inserted: false,
+          outcome: "stale" as const,
+          snapshot: latest,
+        };
       }
 
       const [snapshotRow] = await this.insertSnapshot(
@@ -874,20 +1521,12 @@ export class PostgresProgramStore
         programId,
         candidate,
       );
-      const snapshot =
-        snapshotRow === undefined
-          ? await this.findSnapshotByFingerprint(
-              transaction,
-              programId,
-              candidate.fingerprint,
-            )
-          : mapSnapshot(snapshotRow);
-      if (snapshot === null)
+      if (snapshotRow === undefined) {
         throw new Error("Failed to persist transition snapshot");
-
-      if (snapshotRow !== undefined) {
-        await this.persistArtifacts(transaction, snapshot);
       }
+      const snapshot = mapSnapshot(snapshotRow);
+
+      await this.persistArtifacts(transaction, snapshot);
 
       await transaction`
         UPDATE programs SET
@@ -904,7 +1543,7 @@ export class PostgresProgramStore
           ) VALUES (
             ${event.programId}, ${event.type}, ${event.severity},
             ${event.previousSnapshotId}, ${snapshot.id},
-            ${JSON.stringify(event.evidence)}::jsonb,
+            ${transaction.json(jsonValue(event.evidence))},
             ${event.ruleEngineVersion}, ${event.detectedAt}
           )
           ON CONFLICT (previous_snapshot_id, current_snapshot_id, type)
@@ -912,30 +1551,28 @@ export class PostgresProgramStore
         `;
       }
 
-      if (snapshotRow !== undefined) {
-        await transaction`
-          INSERT INTO product_metrics (metric_name, program_id, metadata)
-          VALUES ('snapshots_created', ${programId}, '{}'::jsonb)
-        `;
-        for (const event of eventCandidates) {
-          const metricName =
-            event.type === "PROGRAM_UPGRADED"
-              ? "upgrades_detected"
-              : event.type === "AUTHORITY_CHANGED" ||
-                  event.type === "PROGRAM_BECAME_IMMUTABLE"
-                ? "authority_changes_detected"
-                : event.type === "IDL_CHANGED"
-                  ? "idl_changes_detected"
-                  : null;
-          if (metricName !== null) {
-            await transaction`
-              INSERT INTO product_metrics (metric_name, program_id, metadata)
-              VALUES (
-                ${metricName}, ${programId},
-                ${JSON.stringify({ eventType: event.type })}::jsonb
-              )
-            `;
-          }
+      await transaction`
+        INSERT INTO product_metrics (metric_name, program_id, metadata)
+        VALUES ('snapshots_created', ${programId}, '{}'::jsonb)
+      `;
+      for (const event of eventCandidates) {
+        const metricName =
+          event.type === "PROGRAM_UPGRADED"
+            ? "upgrades_detected"
+            : event.type === "AUTHORITY_CHANGED" ||
+                event.type === "PROGRAM_BECAME_IMMUTABLE"
+              ? "authority_changes_detected"
+              : event.type === "IDL_CHANGED"
+                ? "idl_changes_detected"
+                : null;
+        if (metricName !== null) {
+          await transaction`
+            INSERT INTO product_metrics (metric_name, program_id, metadata)
+            VALUES (
+              ${metricName}, ${programId},
+              ${transaction.json(jsonValue({ eventType: event.type }))}
+            )
+          `;
         }
       }
 
@@ -951,7 +1588,8 @@ export class PostgresProgramStore
 
       return {
         events: rows.map(mapSecurityEvent),
-        inserted: snapshotRow !== undefined,
+        inserted: true,
+        outcome: "inserted" as const,
         snapshot,
       };
     });
@@ -981,14 +1619,15 @@ export class PostgresProgramStore
     `;
   }
 
-  private async findSnapshotByFingerprint(
+  private async findLatestSnapshot(
     sql: QuerySql,
     programId: string,
-    fingerprint: string,
   ): Promise<VersionSnapshot | null> {
     const [row] = await sql<SnapshotRow[]>`
       SELECT * FROM version_snapshots
-      WHERE program_id = ${programId} AND fingerprint = ${fingerprint}
+      WHERE program_id = ${programId}
+      ORDER BY observed_slot DESC, created_at DESC, id DESC
+      LIMIT 1
     `;
     return row === undefined ? null : mapSnapshot(row);
   }
@@ -1014,15 +1653,18 @@ export class PostgresProgramStore
         ${candidate.observedSlot.toString()}, ${candidate.executableHash},
         ${candidate.accountDataHash}, ${candidate.executableSize},
         ${candidate.upgradeAuthority}, ${candidate.fingerprint}, ${candidate.idlHash},
-        ${candidate.idl === null ? null : JSON.stringify(candidate.idl)}::jsonb,
-        ${candidate.idlInstructions === null ? null : JSON.stringify(candidate.idlInstructions)}::jsonb,
+        ${candidate.idl === null ? null : sql.json(jsonValue(candidate.idl))},
+        ${
+          candidate.idlInstructions === null
+            ? null
+            : sql.json(jsonValue(candidate.idlInstructions))
+        },
         ${candidate.metadataHash}, ${candidate.sourceReferenceHash},
         ${candidate.sourceRepositoryUrl}, ${candidate.sourceRevision},
         ${candidate.sourceVerificationStatus},
         ${candidate.verificationStatus}, ${candidate.trustedFingerprint},
         ${candidate.observedAt}
       )
-      ON CONFLICT (program_id, fingerprint) DO NOTHING
       RETURNING *
     `;
   }
@@ -1038,7 +1680,7 @@ export class PostgresProgramStore
           verification_status, artifact_json
         ) VALUES (
           ${snapshot.id}, 'IDL', ${snapshot.idlHash},
-          ${snapshot.verificationStatus}, ${JSON.stringify(snapshot.idl)}::jsonb
+          ${snapshot.verificationStatus}, ${sql.json(jsonValue(snapshot.idl))}
         )
         ON CONFLICT (program_snapshot_id, artifact_type) DO NOTHING
       `;
@@ -1053,10 +1695,12 @@ export class PostgresProgramStore
           ${snapshot.id}, 'SOURCE_METADATA', ${snapshot.metadataHash},
           ${snapshot.sourceRepositoryUrl}, ${snapshot.sourceRevision},
           ${snapshot.sourceVerificationStatus},
-          ${JSON.stringify({
-            repositoryUrl: snapshot.sourceRepositoryUrl,
-            revision: snapshot.sourceRevision,
-          })}::jsonb
+          ${sql.json(
+            jsonValue({
+              repositoryUrl: snapshot.sourceRepositoryUrl,
+              revision: snapshot.sourceRevision,
+            }),
+          )}
         )
         ON CONFLICT (program_snapshot_id, artifact_type) DO NOTHING
       `;
@@ -1071,7 +1715,9 @@ export class PostgresProgramStore
           ${snapshot.id}, 'REPOSITORY', ${snapshot.sourceReferenceHash},
           ${snapshot.sourceRepositoryUrl}, ${snapshot.sourceRevision},
           ${snapshot.sourceVerificationStatus},
-          ${JSON.stringify({ repositoryUrl: snapshot.sourceRepositoryUrl })}::jsonb
+          ${sql.json(
+            jsonValue({ repositoryUrl: snapshot.sourceRepositoryUrl }),
+          )}
         )
         ON CONFLICT (program_snapshot_id, artifact_type) DO NOTHING
       `;
@@ -1085,10 +1731,12 @@ export class PostgresProgramStore
         ) VALUES (
           ${snapshot.id}, 'VERIFIED_BUILD', ${snapshot.executableHash},
           ${snapshot.sourceRepositoryUrl}, ${snapshot.sourceRevision},
-          'verified', ${JSON.stringify({
-            executableHash: snapshot.executableHash,
-            fingerprint: snapshot.fingerprint,
-          })}::jsonb
+          'verified', ${sql.json(
+            jsonValue({
+              executableHash: snapshot.executableHash,
+              fingerprint: snapshot.fingerprint,
+            }),
+          )}
         )
         ON CONFLICT (program_snapshot_id, artifact_type) DO NOTHING
       `;
@@ -1108,7 +1756,8 @@ export function createPostgresStore(
   readonly close: () => Promise<void>;
   readonly store: PostgresProgramStore;
 } {
-  const isSupabase = databaseUrl.includes("supabase.com");
+  const isSupabase =
+    databaseUrl.includes("supabase.com") || databaseUrl.includes("supabase.co");
   const sql = postgres(databaseUrl, {
     max: options.maxConnections ?? (isSupabase ? 1 : 10),
     prepare: false,

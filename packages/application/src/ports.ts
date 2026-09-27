@@ -32,6 +32,7 @@ export interface CreateProgramInput {
 export interface PersistedTransition {
   readonly events: readonly SecurityEvent[];
   readonly inserted: boolean;
+  readonly outcome: "duplicate" | "inserted" | "stale";
   readonly snapshot: VersionSnapshot;
 }
 
@@ -50,6 +51,7 @@ export interface ProgramStore {
   ): Promise<VersionSnapshot>;
   persistTransition(
     programId: string,
+    previousSnapshotId: string,
     candidate: SnapshotCandidate,
     events: readonly SecurityEventCandidate[],
   ): Promise<PersistedTransition>;

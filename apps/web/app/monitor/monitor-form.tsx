@@ -2,8 +2,13 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import type { Cluster } from "@usekratose/core";
 
-export function MonitorForm() {
+export function MonitorForm({
+  defaultCluster,
+}: {
+  readonly defaultCluster: Cluster;
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -14,12 +19,10 @@ export function MonitorForm() {
     setError(null);
     const data = new FormData(event.currentTarget);
     const address = String(data.get("address") ?? "");
-    const apiKey = String(data.get("apiKey") ?? "");
-    const network = String(data.get("network") ?? "devnet");
-    const response = await fetch("/api/v1/programs", {
+    const network = String(data.get("network") ?? defaultCluster);
+    const response = await fetch("/api/v1/onboarding/program", {
       method: "POST",
       headers: {
-        authorization: `Bearer ${apiKey}`,
         "content-type": "application/json",
       },
       body: JSON.stringify({ address, network }),
@@ -51,22 +54,10 @@ export function MonitorForm() {
       </label>
       <label>
         Network
-        <select name="network" defaultValue="devnet">
+        <select name="network" defaultValue={defaultCluster}>
           <option value="devnet">Devnet</option>
           <option value="mainnet-beta">Mainnet beta</option>
         </select>
-      </label>
-      <label>
-        Project API key
-        <input
-          name="apiKey"
-          type="password"
-          placeholder="uk_••••••••••"
-          required
-        />
-        <small>
-          Used for this request only. It is never stored in the browser.
-        </small>
       </label>
       {error === null ? null : <p className="form-error">{error}</p>}
       <button className="button" disabled={pending} type="submit">

@@ -73,7 +73,11 @@ export default async function ProgramProfilePage({
           <code title={current?.executableHash}>
             {short(current?.executableHash ?? null, 15, 10)}
           </code>
-          <small>{current?.executableSize.toLocaleString() ?? 0} bytes</small>
+          <small>
+            {current === undefined
+              ? "Size unavailable"
+              : `${current.executableSize.toLocaleString()} bytes`}
+          </small>
         </article>
         <article>
           <span>Deployment slot</span>

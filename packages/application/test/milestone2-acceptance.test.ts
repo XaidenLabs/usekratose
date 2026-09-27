@@ -62,11 +62,13 @@ describe("Milestone 2 stored fixture acceptance", () => {
 
     const first = await store.persistTransition(
       program.id,
+      v1.id,
       v2Candidate,
       eventCandidates,
     );
     const replay = await store.persistTransition(
       program.id,
+      v1.id,
       v2Candidate,
       eventCandidates,
     );

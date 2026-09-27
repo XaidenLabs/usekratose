@@ -7,32 +7,16 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Security Console" };
 
 export default async function DashboardPage() {
-  const { metrics, programs, projectId } = await getDashboardData();
+  const { metrics, programs } = await getDashboardData();
   return (
-    <div className="app-shell shell">
-      <aside className="sidebar">
-        <span className="kicker">Project</span>
-        <strong>{projectId}</strong>
-        <nav>
-          <Link className="active" href="/dashboard">
-            Overview
-          </Link>
-          <Link href="/monitor">Programs</Link>
-          <Link href="/dashboard/alerts">Alerts</Link>
-          <Link href="/dashboard/api">API keys</Link>
-        </nav>
-        <div className="sidebar-note">
-          <span className="pulse" /> Monitor worker connected
-        </div>
-      </aside>
-      <section className="workspace">
+      <section className="workspace dashboard-page">
         <div className="workspace-heading">
           <div>
             <span className="kicker">Continuous verification</span>
             <h1>Security console</h1>
             <p>Current evidence across every monitored deployment.</p>
           </div>
-          <Link className="button" href="/monitor">
+          <Link className="button" href="/dashboard/monitor">
             + Add program
           </Link>
         </div>
@@ -73,7 +57,7 @@ export default async function DashboardPage() {
                 Add a devnet or mainnet program to establish its first
                 deployment baseline.
               </p>
-              <Link className="button button-small" href="/monitor">
+              <Link className="button button-small" href="/dashboard/monitor">
                 Monitor your first program
               </Link>
             </div>
@@ -109,6 +93,5 @@ export default async function DashboardPage() {
           )}
         </div>
       </section>
-    </div>
   );
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { NormalizedIdl } from "../src/domain.js";
 
 import { diffNormalizedIdls, normalizeIdl } from "../src/idl-intelligence.js";
 
@@ -82,6 +83,21 @@ describe("IDL intelligence", () => {
       idl({ instructions: [instruction({ name: "deposit" })] }),
     );
     expect(diffNormalizedIdls(value, value)).toEqual({
+      accountTypesChanged: [],
+      errorsChanged: [],
+      instructionSchemasChanged: [],
+    });
+  });
+
+  it("ignores JSON object key ordering introduced by JSONB storage", () => {
+    const previous = JSON.parse(
+      '{"accountTypes":[{"name":"Vault","type":{"fields":[{"name":"authority","type":"pubkey"}],"kind":"struct"}}],"errors":[{"code":6000,"message":"Denied","name":"Denied"}],"instructions":[{"accounts":[{"name":"vault","optional":false,"signer":false,"writable":true}],"arguments":[{"name":"amount","type":"u64"}],"name":"deposit"}]}',
+    ) as NormalizedIdl;
+    const current = JSON.parse(
+      '{"errors":[{"name":"Denied","message":"Denied","code":6000}],"instructions":[{"name":"deposit","arguments":[{"type":"u64","name":"amount"}],"accounts":[{"writable":true,"signer":false,"optional":false,"name":"vault"}]}],"accountTypes":[{"type":{"kind":"struct","fields":[{"type":"pubkey","name":"authority"}]},"name":"Vault"}]}',
+    ) as NormalizedIdl;
+
+    expect(diffNormalizedIdls(previous, current)).toEqual({
       accountTypesChanged: [],
       errorsChanged: [],
       instructionSchemasChanged: [],

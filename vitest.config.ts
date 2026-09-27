@@ -7,6 +7,10 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "json-summary"],
     },
-    include: ["packages/*/test/**/*.test.ts"],
+    include: [
+      "packages/*/test/**/*.test.ts",
+      "apps/web/test/**/*.test.ts",
+      "apps/dashboard/test/**/*.test.ts",
+    ],
   },
 });

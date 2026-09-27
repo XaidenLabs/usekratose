@@ -1,0 +1,102 @@
+[
+  {
+    "name": "access-guard",
+    "address": "5Vbbg9Yuu7dGdhZyHzwog1EDaMsDXA6vksjjitPX6xGh",
+    "network": "devnet",
+    "programDataAddress": "8TjJp2RhRpZziFmMB126ynKP5cbS7VU5VV3fvkKibo2Z",
+    "deploymentSlot": 504580666,
+    "executableHash": "e74330f6003665bb858ab89ab45f157b0fa5a64f723c6f7e56495d6164dab7a1",
+    "binary": "target/deploy/usekratose_demo_access_guard.so",
+    "maxLength": 26392
+  },
+  {
+    "name": "counter",
+    "address": "VvxLExv1yYQhTVpyvYCSwDDV9Ab9GqUShcVvB9Da9XY",
+    "network": "devnet",
+    "programDataAddress": "2ib5VGopiq5QUfzud8kF3Xc9nbPkHNAwRtaRcdBb8WDd",
+    "deploymentSlot": 504580760,
+    "executableHash": "1d4788d5eb9f56b84e1094089a46ec4a7efe4d133b1800aa5fd785e7a8542f1b",
+    "binary": "target/deploy/usekratose_demo_counter.so",
+    "maxLength": 26352
+  },
+  {
+    "name": "emergency-pause",
+    "address": "7yfoVaJNtVC3FiQyw6nS9FoxHY8DQ2VnNYdPcoD7w2y9",
+    "network": "devnet",
+    "programDataAddress": "9pzzN3SLfrxLCtSEj77CYqEzoVdNYCV2im2sqoAAnV4V",
+    "deploymentSlot": 504580863,
+    "executableHash": "521e2e7f505bad5907013bd14286584013dcc2b5a8fc1e23c4eda517a3ca8d0d",
+    "binary": "target/deploy/usekratose_demo_emergency_pause.so",
+    "maxLength": 26360
+  },
+  {
+    "name": "heartbeat",
+    "address": "79i2cSiHB7dntj6SCXtcdkAUzZRYJzgKzgbbca2YgNrp",
+    "network": "devnet",
+    "programDataAddress": "2qUL79Yn5dy2w4PbjnsyHtNYbsaqr51zdQcmxuddLiHS",
+    "deploymentSlot": 504580919,
+    "executableHash": "f9630ad84efcad36c743d67d44712bd2f9424ea04c2c4b678eabfed05c4bb1c7",
+    "binary": "target/deploy/usekratose_demo_heartbeat.so",
+    "maxLength": 26320
+  },
+  {
+    "name": "metadata-registry",
+    "address": "2u3rpRqLMP8A9C8peWFyX48db881uAxWuiNyyiwyBuys",
+    "network": "devnet",
+    "programDataAddress": "DQKCuxHJceYnEuXYhiDV4ZCzhV1HF8sSNyG45Lth1n6J",
+    "deploymentSlot": 504580999,
+    "executableHash": "566f6cb3230e6c39152e128a4af22af9b9c9cb7b032bd98669390a08c3398c65",
+    "binary": "target/deploy/usekratose_demo_metadata_registry.so",
+    "maxLength": 27992
+  },
+  {
+    "name": "oracle-gate",
+    "address": "AmCqfqEP2hueeDHNrS1vQab4QkVcJaV6Lr12zhq2HSuu",
+    "network": "devnet",
+    "programDataAddress": "J19z1aKTDur17v7XxGBoobpoaakUboT3cpZj7nz1qUwb",
+    "deploymentSlot": 504581104,
+    "executableHash": "e90f7e809ba1888beed998bf4298714a30d1c5546966c59f8387a2742c5bfb93",
+    "binary": "target/deploy/usekratose_demo_oracle_gate.so",
+    "maxLength": 26328
+  },
+  {
+    "name": "proposal-vote",
+    "address": "6cwKCtorRRNkKR42c8fn8RsrbEUcBotU19scTz5gg89D",
+    "network": "devnet",
+    "programDataAddress": "AZKCfykhDB9fy1sy2K36icDyUqVrXk4ZhW23SLrhanug",
+    "deploymentSlot": 504581183,
+    "executableHash": "b7966439e12ddbddee27202ec8c3f75852bc100514001f162bfa2d262987f333",
+    "binary": "target/deploy/usekratose_demo_proposal_vote.so",
+    "maxLength": 26352
+  },
+  {
+    "name": "token-policy",
+    "address": "9a86ej1Dyj7SjCnCpL6SiPwKzqvtL5UZqHBL8mdRtXWm",
+    "network": "devnet",
+    "programDataAddress": "54KdPSxgmDq1rd1Qabda3tS3K9YdAQNZcs4KE3T31fWg",
+    "deploymentSlot": 504581248,
+    "executableHash": "d5262f9974d4e7a45ea27f057acfd5cc7b2b116773c76fca6ab4a6247bf1c8e3",
+    "binary": "target/deploy/usekratose_demo_token_policy.so",
+    "maxLength": 26376
+  },
+  {
+    "name": "treasury-guard",
+    "address": "6dGHsZ2s5sRUNZ3byRz5JPyipjscBUBJHYqfnUpF5oab",
+    "network": "devnet",
+    "programDataAddress": "AqLX3aNmErgacPZ3DmGcGGcDZXRznDXR2V6BeSFD86B1",
+    "deploymentSlot": 504581321,
+    "executableHash": "d8e04d6f4dc36569b7ebd0fdc45a53564e7dda4c31f88e2837f032da11adce98",
+    "binary": "target/deploy/usekratose_demo_treasury_guard.so",
+    "maxLength": 26400
+  },
+  {
+    "name": "vault-guard",
+    "address": "7h7YhSxMabkGDqDCRgBYnCJUYafPdg4D13BeUqcmW6Uq",
+    "network": "devnet",
+    "programDataAddress": "HtcKqCvg5CpgUFr8xcLqK4HMCUZo44TVGRwcVQyFKZC4",
+    "deploymentSlot": 504581425,
+    "executableHash": "8fe1c77d99695cc3555fab8954155b5f8f9393c280036fe799f2235a616456fb",
+    "binary": "target/deploy/usekratose_demo_vault_guard.so",
+    "maxLength": 26400
+  }
+]

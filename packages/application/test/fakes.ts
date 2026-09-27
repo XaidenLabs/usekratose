@@ -90,18 +90,39 @@ export class InMemoryProgramStore implements ProgramStore {
 
   public async persistTransition(
     programId: string,
+    previousSnapshotId: string,
     candidate: SnapshotCandidate,
     eventCandidates: readonly SecurityEventCandidate[],
   ): Promise<PersistedTransition> {
-    const existing = this.findSnapshot(programId, candidate.fingerprint);
-    if (existing !== undefined) {
+    const latest = this.snapshots.get(programId)?.at(-1);
+    if (latest === undefined) {
+      throw new Error("Cannot persist a transition without a baseline");
+    }
+    if (latest.fingerprint === candidate.fingerprint) {
       const events = this.events.filter(
-        (item) => item.currentSnapshotId === existing.id,
+        (item) => item.currentSnapshotId === latest.id,
       );
-      return { events, inserted: false, snapshot: existing };
+      return {
+        events,
+        inserted: false,
+        outcome: "duplicate",
+        snapshot: latest,
+      };
+    }
+    if (latest.id !== previousSnapshotId) {
+      return {
+        events: [],
+        inserted: false,
+        outcome: "stale",
+        snapshot: latest,
+      };
     }
 
-    const snapshot = await this.persistBaseline(programId, candidate);
+    const snapshot = { ...candidate, id: randomUUID(), programId };
+    this.snapshots.set(programId, [
+      ...(this.snapshots.get(programId) ?? []),
+      snapshot,
+    ]);
     const program = this.programs.get(programId);
     if (program !== undefined) {
       this.programs.set(programId, {
@@ -134,6 +155,7 @@ export class InMemoryProgramStore implements ProgramStore {
         (event) => event.currentSnapshotId === snapshot.id,
       ),
       inserted: true,
+      outcome: "inserted",
       snapshot,
     };
   }

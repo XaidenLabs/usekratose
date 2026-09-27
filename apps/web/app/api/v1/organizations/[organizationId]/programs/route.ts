@@ -1,13 +1,11 @@
 import { ProgramIngestionService } from "@usekratose/application";
 import { UseKratoseError } from "@usekratose/core";
-import {
-  ProgramMetadataIntelligenceClient,
-  SolanaRpcClient,
-} from "@usekratose/solana";
+import { ProgramMetadataIntelligenceClient } from "@usekratose/solana";
 import { z } from "zod";
 
 import { createServerDatabase } from "@/lib/database";
 import { hasControlPlaneAccess } from "@/lib/api-server";
+import { rpcUrlForCluster, solanaGatewayForCluster } from "@/lib/solana-rpc";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -16,22 +14,6 @@ const bodySchema = z.object({
   address: z.string().min(32).max(44),
   cluster: z.enum(["devnet", "mainnet-beta"]),
 });
-
-function rpcUrlForCluster(cluster: "devnet" | "mainnet-beta"): string {
-  if (cluster === "devnet") {
-    return (
-      process.env.SOLANA_DEVNET_RPC_HTTP_URL ?? "https://api.devnet.solana.com"
-    );
-  }
-
-  const endpoint = process.env.SOLANA_MAINNET_RPC_HTTP_URL;
-  if (endpoint === undefined) {
-    throw new Error(
-      "SOLANA_MAINNET_RPC_HTTP_URL is required for mainnet monitoring",
-    );
-  }
-  return endpoint;
-}
 
 export async function POST(
   request: Request,
@@ -65,7 +47,7 @@ export async function POST(
   try {
     const rpcUrl = rpcUrlForCluster(parsed.data.cluster);
     const service = new ProgramIngestionService(
-      new SolanaRpcClient(rpcUrl),
+      solanaGatewayForCluster(parsed.data.cluster),
       database.store,
       undefined,
       new ProgramMetadataIntelligenceClient(rpcUrl),

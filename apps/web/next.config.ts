@@ -1,4 +1,15 @@
+import { existsSync } from "node:fs";
+import { loadEnvFile } from "node:process";
+import { resolve } from "node:path";
+
 import type { NextConfig } from "next";
+
+const rootEnvironment = resolve(process.cwd(), "../../.env.local");
+if (existsSync(rootEnvironment)) loadEnvFile(rootEnvironment);
+
+const dashboardOrigin = (
+  process.env.DASHBOARD_ORIGIN ?? "http://localhost:3001"
+).replace(/\/$/, "");
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
@@ -12,6 +23,20 @@ const nextConfig: NextConfig = {
     "@usekratose/explanations",
     "@usekratose/solana",
   ],
+  async rewrites() {
+    return {
+      beforeFiles: [
+        {
+          source: "/dashboard",
+          destination: `${dashboardOrigin}/dashboard`,
+        },
+        {
+          source: "/dashboard/:path*",
+          destination: `${dashboardOrigin}/dashboard/:path*`,
+        },
+      ],
+    };
+  },
   webpack: (config) => {
     config.resolve.extensionAlias = {
       ".cjs": [".cts", ".cjs"],

@@ -39,6 +39,7 @@ pnpm db:migrate
 pnpm dev:monitor
 pnpm dev
 pnpm proof:upgrade -- PROGRAM_ID
+pnpm proof:polling-recovery -- PROGRAM_ID
 pnpm security:diff -- PROGRAM_ID
 ```
 

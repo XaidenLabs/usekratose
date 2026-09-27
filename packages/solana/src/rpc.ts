@@ -6,7 +6,7 @@ import { z } from "zod";
 const accountSchema = z.object({
   data: z.tuple([z.string(), z.literal("base64")]),
   executable: z.boolean(),
-  lamports: z.number().int().nonnegative(),
+  lamports: z.number().int().nonnegative().safe(),
   owner: z.string(),
 });
 
@@ -14,7 +14,7 @@ const responseSchema = z.object({
   error: z.object({ code: z.number(), message: z.string() }).optional(),
   result: z
     .object({
-      context: z.object({ slot: z.number().int().nonnegative() }),
+      context: z.object({ slot: z.number().int().nonnegative().safe() }),
       value: accountSchema.nullable(),
     })
     .optional(),
@@ -70,12 +70,13 @@ export class SolanaRpcClient implements SolanaGateway {
     }
 
     const account = parsed.data.result.value;
+    const data = account === null ? null : decodeBase64(account.data[0]);
     return {
       account:
         account === null
           ? null
           : {
-              data: Buffer.from(account.data[0], "base64"),
+              data: data ?? new Uint8Array(),
               executable: account.executable,
               lamports: BigInt(account.lamports),
               owner: account.owner,
@@ -83,4 +84,26 @@ export class SolanaRpcClient implements SolanaGateway {
       contextSlot: BigInt(parsed.data.result.context.slot),
     };
   }
+}
+
+function decodeBase64(value: string): Uint8Array {
+  const unpadded = value.replace(/=+$/, "");
+  if (
+    value.length % 4 === 1 ||
+    !/^[A-Za-z0-9+/]*={0,2}$/.test(value) ||
+    value.slice(0, -2).includes("=")
+  ) {
+    throw new UseKratoseError(
+      "RPC_ERROR",
+      "Solana RPC returned invalid base64 account data",
+    );
+  }
+  const decoded = Buffer.from(value, "base64");
+  if (decoded.toString("base64").replace(/=+$/, "") !== unpadded) {
+    throw new UseKratoseError(
+      "RPC_ERROR",
+      "Solana RPC returned invalid base64 account data",
+    );
+  }
+  return decoded;
 }
