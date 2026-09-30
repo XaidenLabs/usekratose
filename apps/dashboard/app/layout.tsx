@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   description: "UseKratose continuous Solana program security console.",
-  title: { default: "UseKratose Console", template: "%s — UseKratose" },
+  title: { default: "UseKratose Console", template: "%s - UseKratose" },
 };
 
 export default function RootLayout({ children }: { readonly children: React.ReactNode }) {

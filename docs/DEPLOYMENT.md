@@ -34,7 +34,7 @@ Required variables:
 - `DASHBOARD_ORIGIN=https://<dashboard-project-domain>`
 - `NEXT_PUBLIC_DASHBOARD_URL=https://<public-domain>/dashboard`
 - `NEXT_PUBLIC_MARKETING_URL=https://<public-domain>`
-- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_URL123`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_DATABASE_URL` using the transaction pooler
 - `API_KEY_PEPPER`

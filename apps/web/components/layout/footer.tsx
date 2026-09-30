@@ -45,7 +45,7 @@ export default function Footer() {
             </Link>
             <p>
               Continuous deployment-security evidence for Solana
-              programs—deterministic, explainable, and grounded in finalized
+              programs for deterministic, explainable, and grounded in finalized
               on-chain state.
             </p>
           </div>
