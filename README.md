@@ -93,3 +93,5 @@ Deploy only `apps/web` to Vercel. The monitor worker requires a persistent proce
 Use Supabase for durable storage and Vercel for `apps/web`. The persistent monitor runs separately because request-scoped Vercel Functions do not own long-lived WebSocket subscriptions. The source product specification is `UseKratose_Master_Product_Technical_Documentation.pdf`.
 
 Architecture, decisions, API, threat model, and demo instructions are maintained in `docs/architecture.md`, `docs/decisions.md`, `docs/api.md`, `docs/threat-model.md`, and `docs/demo-plan.md`.
+
+The public security model and its limitations are documented in [`docs/security-methodology.md`](docs/security-methodology.md). Vulnerabilities should be reported privately according to [`SECURITY.md`](SECURITY.md), and production promotion follows [`docs/RELEASE.md`](docs/RELEASE.md).

@@ -7,6 +7,7 @@ import {
 import { type PostgresProgramStore } from "@usekratose/database";
 
 import { createServerDatabase } from "./database";
+import { errorName, logServerEvent } from "./observability";
 
 export interface ApiContext {
   readonly key: AuthenticatedApiKey;
@@ -76,7 +77,12 @@ export async function withApiAuth(
       }
     }
   } catch (error) {
-    console.error("API request failed", { error, requestId });
+    logServerEvent("error", "api.request.failed", {
+      error: errorName(error),
+      method: request.method,
+      path: new URL(request.url).pathname,
+      requestId,
+    });
     response = Response.json(
       { error: { code: "INTERNAL_ERROR", message: "Request failed" } },
       { status: 500 },
@@ -94,9 +100,12 @@ export async function withApiAuth(
       requestId,
       statusCode: response.status,
     })
-    .catch((error: unknown) =>
-      console.error("API request log failed", { error }),
-    );
+    .catch((error: unknown) => {
+      logServerEvent("error", "api.request.audit_log_failed", {
+        error: errorName(error),
+        requestId,
+      });
+    });
   await database.close();
   return response;
 }

@@ -7,6 +7,7 @@
   },
   "scripts": {
     "build": "pnpm -r --if-present build",
+    "check": "pnpm typecheck && pnpm test && pnpm build",
     "dev": "pnpm --filter @usekratose/web dev",
     "dev:monitor": "pnpm --filter @usekratose/monitor dev",
     "explain:event": "pnpm --filter @usekratose/monitor explain:event",
@@ -16,11 +17,15 @@
     "proof:polling-recovery": "pnpm --filter @usekratose/monitor proof:polling-recovery",
     "proof:upgrade": "pnpm --filter @usekratose/monitor proof:upgrade",
     "security:diff": "pnpm --filter @usekratose/monitor security:diff",
+    "seed:demo-fleet": "pnpm --filter @usekratose/monitor seed:demo-fleet",
     "test": "vitest run",
+    "test:database": "vitest run packages/database/test/platform-e2e.test.ts",
+    "test:e2e": "playwright test",
     "test:watch": "vitest",
     "typecheck": "pnpm -r --if-present typecheck"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.1",
     "@types/node": "^22.18.6",
     "prettier": "^3.6.2",
     "tsx": "^4.20.5",

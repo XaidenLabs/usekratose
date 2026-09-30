@@ -6,22 +6,29 @@ import { fileURLToPath } from "node:url";
 
 import postgres from "postgres";
 
-for (const candidate of [".env.local", "../../.env.local", ".env"]) {
-  const path = resolve(candidate);
-  if (existsSync(path)) {
-    loadEnvFile(path);
-    break;
+if (
+  process.env.DATABASE_URL === undefined &&
+  process.env.SUPABASE_DATABASE_URL === undefined
+) {
+  for (const candidate of [".env.local", "../../.env.local", ".env"]) {
+    const path = resolve(candidate);
+    if (existsSync(path)) {
+      loadEnvFile(path);
+      break;
+    }
   }
 }
 
 const databaseUrl =
-  process.env.SUPABASE_DATABASE_URL ?? process.env.DATABASE_URL;
+  process.env.DATABASE_URL ?? process.env.SUPABASE_DATABASE_URL;
 if (databaseUrl === undefined) {
   throw new Error("DATABASE_URL is required");
 }
 
 const isSupabase =
-  databaseUrl.includes("supabase.com") || databaseUrl.includes("supabase.co");
+  process.env.SUPABASE_DATABASE_URL === databaseUrl ||
+  databaseUrl.includes("supabase.com") ||
+  databaseUrl.includes("supabase.co");
 const sql = postgres(databaseUrl, {
   max: 1,
   prepare: false,
@@ -42,6 +49,10 @@ try {
     .sort();
 
   for (const file of files) {
+    if (file === "0012_program_artifact_storage.sql" && !isSupabase) {
+      console.log(`Skipped ${file} (Supabase Storage only)`);
+      continue;
+    }
     const [existing] = await sql<{ readonly name: string }[]>`
       SELECT name FROM schema_migrations WHERE name = ${file}
     `;

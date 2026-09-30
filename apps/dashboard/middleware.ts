@@ -5,9 +5,14 @@ import { DASHBOARD_BASE_PATH, dashboardPath } from "@/lib/paths";
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
+  const requestId = request.headers.get("x-request-id") ?? crypto.randomUUID();
+  const respond = (nextResponse: NextResponse) => {
+    nextResponse.headers.set("x-request-id", requestId);
+    return nextResponse;
+  };
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !publishableKey) return response;
+  if (!url || !publishableKey) return respond(response);
 
   const supabase = createServerClient(url, publishableKey, {
     cookies: {
@@ -30,14 +35,16 @@ export async function middleware(request: NextRequest) {
     : request.nextUrl.pathname;
   const isAuthRoute = ["/login", "/signup"].includes(pathname);
   if (user === null && !isAuthRoute) {
-    return NextResponse.redirect(new URL(dashboardPath("/login"), request.url));
-  }
-  if (user !== null && isAuthRoute) {
-    return NextResponse.redirect(
-      new URL(dashboardPath("/overview"), request.url),
+    return respond(
+      NextResponse.redirect(new URL(dashboardPath("/login"), request.url)),
     );
   }
-  return response;
+  if (user !== null && isAuthRoute) {
+    return respond(
+      NextResponse.redirect(new URL(dashboardPath("/overview"), request.url)),
+    );
+  }
+  return respond(response);
 }
 
 export const config = {

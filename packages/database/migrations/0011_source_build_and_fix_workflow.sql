@@ -62,6 +62,17 @@ ALTER TABLE program_source_workspaces ENABLE ROW LEVEL SECURITY;
 ALTER TABLE program_source_files ENABLE ROW LEVEL SECURITY;
 ALTER TABLE program_fix_reviews ENABLE ROW LEVEL SECURITY;
 
-REVOKE ALL ON TABLE program_source_workspaces FROM anon, authenticated;
-REVOKE ALL ON TABLE program_source_files FROM anon, authenticated;
-REVOKE ALL ON TABLE program_fix_reviews FROM anon, authenticated;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    REVOKE ALL ON TABLE program_source_workspaces FROM anon;
+    REVOKE ALL ON TABLE program_source_files FROM anon;
+    REVOKE ALL ON TABLE program_fix_reviews FROM anon;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    REVOKE ALL ON TABLE program_source_workspaces FROM authenticated;
+    REVOKE ALL ON TABLE program_source_files FROM authenticated;
+    REVOKE ALL ON TABLE program_fix_reviews FROM authenticated;
+  END IF;
+END
+$$;
