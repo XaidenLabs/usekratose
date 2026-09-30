@@ -6,9 +6,9 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "build": "pnpm -r --if-present build",
+    "build": "node api.js && pnpm -r --if-present build",
     "check": "pnpm typecheck && pnpm test && pnpm build",
-    "dev": "pnpm --filter @usekratose/web dev",
+    "dev": "node api.js && pnpm --filter @usekratose/web dev",
     "dev:monitor": "pnpm --filter @usekratose/monitor dev",
     "explain:event": "pnpm --filter @usekratose/monitor explain:event",
     "format": "prettier --write .",
