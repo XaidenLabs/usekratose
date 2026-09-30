@@ -1,0 +1,33 @@
+{
+  "default_branch": "dev",
+  "branches": [
+    "dependabot/github_actions/actions/checkout-7",
+    "dependabot/github_actions/actions/dependency-review-action-5",
+    "dependabot/github_actions/actions/setup-node-7",
+    "dependabot/github_actions/actions/upload-artifact-7",
+    "dependabot/github_actions/pnpm/action-setup-6",
+    "dependabot/npm_and_yarn/production-dependencies-0808e6ed31",
+    "dev",
+    "origin"
+  ],
+  "parent": {
+    "dependabot/github_actions/actions/checkout-7": "dev",
+    "dependabot/github_actions/actions/dependency-review-action-5": "dev",
+    "dependabot/github_actions/actions/setup-node-7": "dev",
+    "dependabot/github_actions/actions/upload-artifact-7": "dev",
+    "dependabot/github_actions/pnpm/action-setup-6": "dev",
+    "dependabot/npm_and_yarn/production-dependencies-0808e6ed31": "dev",
+    "dev": null,
+    "origin": "dev"
+  },
+  "order": [
+    "dev",
+    "dependabot/github_actions/actions/checkout-7",
+    "dependabot/github_actions/actions/dependency-review-action-5",
+    "dependabot/github_actions/actions/setup-node-7",
+    "dependabot/github_actions/actions/upload-artifact-7",
+    "dependabot/github_actions/pnpm/action-setup-6",
+    "dependabot/npm_and_yarn/production-dependencies-0808e6ed31",
+    "origin"
+  ]
+}
