@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
-    "@supabase/supabase-js": "^2.57.4",
+    "@supabase/supabase-js": "^2.117.2",
     "@usekratose/alerts": "workspace:*",
     "@usekratose/application": "workspace:*",
     "@usekratose/core": "workspace:*",
@@ -18,11 +18,11 @@
     "@usekratose/explanations": "workspace:*",
     "@usekratose/solana": "workspace:*",
     "clsx": "^2.1.1",
-    "next": "^15.5.3",
+    "next": "^16.3.6",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-just-parallax": "^3.1.16",
-    "tailwind-merge": "^2.6.0",
+    "tailwind-merge": "^3.7.0",
     "zod": "^4.1.11"
   },
   "devDependencies": {
