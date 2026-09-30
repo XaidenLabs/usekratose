@@ -20,34 +20,26 @@ export function NewProgramForm({
     setPending(true);
     setError(null);
     const form = new FormData(event.currentTarget);
-    try {
-      const response = await fetch(dashboardPath("/api/programs"), {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          address: form.get("address"),
-          name: form.get("name"),
-          network: form.get("network"),
-        }),
-        signal: AbortSignal.timeout(20_000),
-      });
-      const body = (await response.json().catch(() => null)) as {
-        readonly error?: { readonly message?: string };
-      } | null;
-      if (!response.ok) {
-        setError(
-          body?.error?.message ?? `Monitoring failed (${response.status})`,
-        );
-        setPending(false);
-        return;
-      }
-      onSuccess();
-    } catch {
+    const response = await fetch(dashboardPath("/api/programs"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        address: form.get("address"),
+        name: form.get("name"),
+        network: form.get("network"),
+      }),
+    });
+    const body = (await response.json().catch(() => null)) as {
+      readonly error?: { readonly message?: string };
+    } | null;
+    if (!response.ok) {
       setError(
-        "Monitoring setup is temporarily unavailable. Please try again.",
+        body?.error?.message ?? `Monitoring failed (${response.status})`,
       );
       setPending(false);
+      return;
     }
+    onSuccess();
   }
 
   return (

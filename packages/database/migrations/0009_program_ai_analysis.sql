@@ -23,13 +23,4 @@ CREATE INDEX IF NOT EXISTS program_ai_analyses_program_created_idx
   ON program_ai_analyses (program_id, created_at DESC);
 
 ALTER TABLE program_ai_analyses ENABLE ROW LEVEL SECURITY;
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
-    REVOKE ALL ON TABLE program_ai_analyses FROM anon;
-  END IF;
-  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
-    REVOKE ALL ON TABLE program_ai_analyses FROM authenticated;
-  END IF;
-END
-$$;
+REVOKE ALL ON TABLE program_ai_analyses FROM anon, authenticated;

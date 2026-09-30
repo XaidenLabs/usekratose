@@ -20,27 +20,21 @@ export function WorkspaceForm({
     setError(null);
     setPending(true);
     const form = new FormData(event.currentTarget);
-    try {
-      const response = await fetch(dashboardPath("/api/workspace"), {
-        body: JSON.stringify({ name: form.get("name") }),
-        headers: { "content-type": "application/json" },
-        method: "POST",
-        signal: AbortSignal.timeout(15_000),
-      });
-      const body = (await response.json().catch(() => null)) as {
-        readonly error?: { readonly message?: string };
-      } | null;
-      if (!response.ok) {
-        setError(body?.error?.message ?? "Unable to create workspace");
-        setPending(false);
-        return;
-      }
-      router.replace("/overview");
-      router.refresh();
-    } catch {
-      setError("Workspace setup is temporarily unavailable. Please try again.");
+    const response = await fetch(dashboardPath("/api/workspace"), {
+      body: JSON.stringify({ name: form.get("name") }),
+      headers: { "content-type": "application/json" },
+      method: "POST",
+    });
+    const body = (await response.json().catch(() => null)) as {
+      readonly error?: { readonly message?: string };
+    } | null;
+    if (!response.ok) {
+      setError(body?.error?.message ?? "Unable to create workspace");
       setPending(false);
+      return;
     }
+    router.replace("/overview");
+    router.refresh();
   }
 
   return (

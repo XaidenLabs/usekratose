@@ -4,12 +4,12 @@ import { resolve } from "node:path";
 
 import type { NextConfig } from "next";
 
-import { resolveDashboardOrigin } from "./lib/dashboard-origin";
-
 const rootEnvironment = resolve(process.cwd(), "../../.env.local");
 if (existsSync(rootEnvironment)) loadEnvFile(rootEnvironment);
 
-const dashboardOrigin = resolveDashboardOrigin(process.env.DASHBOARD_ORIGIN);
+const dashboardOrigin = (
+  process.env.DASHBOARD_ORIGIN ?? "http://localhost:3001"
+).replace(/\/$/, "");
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,

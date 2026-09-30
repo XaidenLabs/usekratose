@@ -34,7 +34,7 @@ Required variables:
 - `DASHBOARD_ORIGIN=https://<dashboard-project-domain>`
 - `NEXT_PUBLIC_DASHBOARD_URL=https://<public-domain>/dashboard`
 - `NEXT_PUBLIC_MARKETING_URL=https://<public-domain>`
-- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_URL123`
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_DATABASE_URL` using the transaction pooler
 - `API_KEY_PEPPER`
@@ -78,5 +78,3 @@ Run one monitor per cluster. Apply database migrations before promoting a web re
 4. Verify `/`, `/dashboard/overview`, and authenticated dashboard API operations through the public origin.
 5. Restart the persistent monitor and confirm finalized reconciliation writes a fresh health observation.
 6. Scan Vercel and worker logs for errors before announcing the release.
-
-Repository protection, smoke-test secrets, promotion, and rollback requirements are defined in [`RELEASE.md`](RELEASE.md).

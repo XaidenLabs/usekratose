@@ -8,11 +8,6 @@ const AUTH_ROUTES = ["/login", "/signup", "/forgot-password"];
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
-  const requestId = request.headers.get("x-request-id") ?? crypto.randomUUID();
-  const respond = (response: NextResponse) => {
-    response.headers.set("x-request-id", requestId);
-    return response;
-  };
   const { pathname } = request.nextUrl;
   const isProtected = PROTECTED_ROUTES.some((route) =>
     isRouteWithin(pathname, route),
@@ -21,11 +16,9 @@ export async function middleware(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !anonKey) {
-    return respond(
-      isProtected
-        ? new NextResponse("Authentication is not configured", { status: 503 })
-        : supabaseResponse,
-    );
+    return isProtected
+      ? new NextResponse("Authentication is not configured", { status: 503 })
+      : supabaseResponse;
   }
 
   const supabase = createServerClient(url, anonKey, {
@@ -54,7 +47,7 @@ export async function middleware(request: NextRequest) {
   if (isProtected && !user) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
-    return respond(NextResponse.redirect(loginUrl));
+    return NextResponse.redirect(loginUrl);
   }
 
   // Redirect authenticated users away from auth pages
@@ -62,10 +55,10 @@ export async function middleware(request: NextRequest) {
     isRouteWithin(pathname, route),
   );
   if (isAuthRoute && user) {
-    return respond(NextResponse.redirect(new URL("/dashboard", request.url)));
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  return respond(supabaseResponse);
+  return supabaseResponse;
 }
 
 export const config = {

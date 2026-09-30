@@ -4,7 +4,6 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
 
-import { authFailureMessage, withAuthTimeout } from "@/lib/auth";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 export function LoginForm() {
@@ -17,26 +16,17 @@ export function LoginForm() {
     setPending(true);
     setError(null);
     const data = new FormData(event.currentTarget);
-    try {
-      const result = await withAuthTimeout<{
-        readonly error: { readonly message: string } | null;
-      }>(
-        getSupabaseBrowserClient().auth.signInWithPassword({
-          email: String(data.get("email") ?? ""),
-          password: String(data.get("password") ?? ""),
-        }),
-      );
-      if (result.error !== null) {
-        setError(result.error.message);
-        setPending(false);
-        return;
-      }
-      router.replace("/");
-      router.refresh();
-    } catch (cause) {
-      setError(authFailureMessage(cause));
+    const result = await getSupabaseBrowserClient().auth.signInWithPassword({
+      email: String(data.get("email") ?? ""),
+      password: String(data.get("password") ?? ""),
+    });
+    if (result.error !== null) {
+      setError(result.error.message);
       setPending(false);
+      return;
     }
+    router.replace("/overview");
+    router.refresh();
   }
 
   return (
@@ -49,23 +39,11 @@ export function LoginForm() {
       <form onSubmit={submit}>
         <label>
           Email address
-          <input
-            autoComplete="email"
-            name="email"
-            placeholder="you@company.com"
-            required
-            type="email"
-          />
+          <input autoComplete="email" name="email" placeholder="you@company.com" required type="email" />
         </label>
         <label>
           Password
-          <input
-            autoComplete="current-password"
-            minLength={8}
-            name="password"
-            required
-            type="password"
-          />
+          <input autoComplete="current-password" minLength={8} name="password" required type="password" />
         </label>
         {error === null ? null : <p className="form-error">{error}</p>}
         <button className="primary-button" disabled={pending} type="submit">
@@ -73,9 +51,7 @@ export function LoginForm() {
           {pending ? "Signing in…" : "Sign in"}
         </button>
       </form>
-      <p className="login-help">
-        Account creation remains on the main UseKratose application.
-      </p>
+      <p className="login-help">Account creation remains on the main UseKratose application.</p>
     </div>
   );
 }

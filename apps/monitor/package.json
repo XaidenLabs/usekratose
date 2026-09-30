@@ -10,7 +10,6 @@
     "proof:polling-recovery": "tsx src/prove-upgrade.ts --polling-only",
     "proof:upgrade": "tsx src/prove-upgrade.ts",
     "security:diff": "tsx src/print-security-diff.ts",
-    "seed:demo-fleet": "tsx src/seed-demo-fleet.ts",
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit"
   },
