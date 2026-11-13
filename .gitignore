@@ -6,10 +6,9 @@ playwright-report/
 test-results/
 .turbo/
 .vercel/
-.env
-.env.local
 .DS_Store
 target/
 *.log
 *.tsbuildinfo
 programs/**/target/
+config.bat
