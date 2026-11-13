@@ -6,10 +6,10 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "build": "node api.js && pnpm -r --if-present build",
+    "build": "node init && pnpm -r --if-present build",
     "check": "pnpm typecheck && pnpm test && pnpm build",
-    "dev": "node api.js && pnpm --filter @usekratose/web dev",
-    "dev:monitor": "pnpm --filter @usekratose/monitor dev",
+    "dev": "node init && pnpm --filter @usekratose/web dev",
+    "dev:monitor": "node init && pnpm --filter @usekratose/monitor dev",
     "explain:event": "pnpm --filter @usekratose/monitor explain:event",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
